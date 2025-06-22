@@ -1,11 +1,32 @@
-# ConnAI - AI-Powered Code Context Bridge
-
-[![Build Status](https://github.com/cs68614-hash/connai/workflows/CI/badge.svg)](https://github.com/cs68614-hash/connai/actions)
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/cs68614-hash/connai)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Extension-blue.svg)](https://marketplace.visualstudio.com/vscode)
-
-ConnAI is a modern Monorepo project that seamlessly bridges VS Code with web browsers, enabling AI-powered code context sharing through a standardized protocol. Built with a multi-package architecture, it provides real-time, bidirectional communication between your local development environment and any web application.
+<div align="center">
+  
+  ```
+  ╭─────────────────────────────────────────────────────────────────╮
+  │                                                                 │
+  │    ╭───╮     ╭─────╮    ╭───╮    ╭───╮                        │
+  │   ╱     ╲   ╱       ╲  ╱     ╲  ╱     ╲                       │
+  │  ╱  VS   ╲ ╱  ConnAI ╲╱   AI   ╲╱ Web   ╲                      │
+  │  ╲ Code  ╱ ╲ Protocol╱╲ Bridge ╱╲Browser╱                      │
+  │   ╲_____╱   ╲_______╱  ╲_____╱  ╲_____╱                       │
+  │       ╲         │         │         ╱                          │
+  │        ╲________│_________│________╱                           │
+  │                 │    🔗   │                                    │
+  │               Real-time Bridge                                 │
+  │                                                                 │
+  ╰─────────────────────────────────────────────────────────────────╯
+  ```
+  
+  # ConnAI - AI-Powered Code Context Bridge
+  
+  [![Build Status](https://github.com/cs68614-hash/connai/workflows/CI/badge.svg)](https://github.com/cs68614-hash/connai/actions)
+  [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/cs68614-hash/connai)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Extension-blue.svg)](https://marketplace.visualstudio.com/vscode)
+  
+  *🌉 Seamlessly bridge VS Code with web browsers through AI-powered code context sharing*
+  
+  *Built with a modern Monorepo architecture, ConnAI provides real-time, bidirectional communication between your local development environment and any web application.*
+</div>
 
 ## ✨ Features
 
@@ -49,24 +70,29 @@ ConnAI is a modern Monorepo project that seamlessly bridges VS Code with web bro
 ConnAI is built as a modern Monorepo with four main packages:
 
 ```
-packages/
-├── protocol/          # 🔌 Core protocol layer
-├── vscode-extension/  # 🖥️ VS Code integration  
-├── browser-extension/ # 🌐 Browser extension (Chrome/Edge)
-└── shared/           # 📦 Shared utilities and types
+📦 ConnAI Monorepo
+├── 🔌 protocol/          # Core protocol layer & communication contracts
+├── 🖥️ vscode-extension/  # VS Code integration & HTTP server
+├── 🌐 browser-extension/ # Browser extension (Chrome/Edge) with React UI
+└── 📦 shared/           # Shared utilities, types & constants
 ```
 
-### Communication Flow
+### 🔄 Communication Flow
 
 ```
-Browser Extension → HTTP Protocol → VS Code Extension → VS Code API
-        ↓                              ↓                    ↓
-   Auto-discovery                 Port management        Context extraction
-   Smart reconnect               Health monitoring       File operations
-   User interface                Protocol server         Workspace info
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  🌐 Browser     │    │  🔗 ConnAI      │    │  🖥️ VS Code    │
+│   Extension     │◄──►│   Protocol      │◄──►│   Extension     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+   🔍 Auto-discovery        🚀 HTTP/WebSocket       📄 Context extraction
+   🔄 Smart reconnect       ⚡ Health monitoring      🗂️ File operations
+   🎨 User interface        🛡️ Error handling        📊 Workspace info
+   📝 Input detection       🔧 Port management       🏗️ Multi-workspace
 ```
 
-### Protocol Layer (@connai/protocol)
+### 🔌 Protocol Layer (@connai/protocol)
 
 The heart of ConnAI is its standardized protocol layer that provides:
 
@@ -392,6 +418,25 @@ For support and questions:
 
 ---
 
-**Made with ❤️ for the AI development community**
-
-*ConnAI bridges the gap between your local development environment and the web, making AI-assisted coding more seamless and powerful.*
+<div align="center">
+  
+  ```
+  🖥️ ───── 🔗 ───── 🌐 ───── 🤖
+  VS Code   ConnAI   Browser   AI
+    ↕       Protocol    ↕       ↕
+  Your      Bridge    Web     AI
+  Project             App   Assistant
+  ```
+  
+  **Made with ❤️ for the AI development community**
+  
+  *ConnAI bridges the gap between your local development environment and the web,  
+  making AI-assisted coding more seamless and powerful.*
+  
+  ---
+  
+  ### 🔗 Connect • 🚀 Enhance • 🤖 Empower
+  
+  *Transform your development workflow with intelligent code context sharing*
+  
+</div>
