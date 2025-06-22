@@ -1,35 +1,47 @@
-# Change Log
+# Changelog
 
-All notable changes to the ConnAI extension will be documented in this file.
+All notable changes to the ConnAI project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2025-06-22
 
 ### Added
-- WebSocket server integration for bridging VS Code with web clients
-- Whop.com OAuth authentication and subscription management
-- Multi-device license validation and machine registration
-- Complete workspace context extraction and analysis
-- AI token counting with tiktoken integration
-- Smart file filtering with .gitignore support
-- Real-time file content and structure monitoring
-- Cursor position and selection tracking
-- Diagnostics information (errors, warnings, suggestions)
-- Recent changes tracking and history
-- Remote command execution capabilities
-- Caching system for performance optimization
-- Comprehensive configuration options
-- TypeScript implementation with full type safety
+- **Monorepo Architecture**: Complete refactor to pnpm workspace-based monorepo
+- **Protocol Layer** (@connai/protocol): Standardized communication protocol for editor-agnostic integration
+- **Browser Extension**: Chrome/Edge extension with smart input detection and auto-connect
+- **Smart Port Management**: Automatic port detection and scanning (6718-6817, 8080-8090)
+- **Auto-Connect Functionality**: Zero-configuration connection between browser and VS Code
+- **Multi-Workspace Support**: Support for multiple VS Code instances with unique port assignment
+- **Rich Context Types**: Focused file, selected text, open tabs, problems, file tree, full workspace
+- **Background Connection Management**: Health checks, reconnection, and status monitoring
+- **Protocol Server**: HTTP RESTful API with health monitoring and diagnostics
+- **Integration Testing**: End-to-end testing setup with example HTML files
 
-### Technical Features
-- Socket.io WebSocket server with authentication
-- Context providers for workspace, files, folders, cursor, diagnostics
-- Modular architecture with clear separation of concerns
-- Comprehensive error handling and logging
-- Unit tests and CI/CD pipeline setup
-- VS Code extension packaging and distribution
+### Changed
+- **Major Architecture Refactor**: Migrated from single package to monorepo structure
+- **Communication Protocol**: Switched from WebSocket to HTTP-based protocol (WebSocket support coming soon)
+- **VS Code Extension**: Refactored to use native http.Server instead of Express
+- **Browser Integration**: Complete rewrite using WXT framework with React
+- **Documentation**: Major README.md update with comprehensive feature documentation
+
+### Technical Details
+- **Packages**: 
+  - `@connai/protocol`: Core protocol implementation
+  - `@connai/vscode-extension`: VS Code integration
+  - `@connai/browser-extension`: Browser extension (WXT + React)
+  - `@connai/shared`: Shared utilities and types
+- **Build System**: Unified pnpm workspace with cross-package dependencies
+- **Type Safety**: Full TypeScript implementation with shared type definitions
+- **Testing**: Integration tests and development tools
+
+### Future Plans
+- WebSocket protocol implementation for real-time push notifications
+- Support for additional editors (Cursor, WebStorm, etc.)
+- Enhanced AI context optimization
+- Team collaboration features
+- Performance monitoring and analytics
 
 ## [0.0.1] - 2024-06-21
 
