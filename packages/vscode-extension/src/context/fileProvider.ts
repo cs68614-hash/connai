@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import * as path from 'path';
-import { FileContext } from '../types';
+import { FileContext, countTokens } from '@connai/shared';
 import { UriHelper } from '../utils/uriHelper';
 import { IgnoreManager } from '../utils/ignore';
 import { cache } from '../utils/cache';
-import { countTokens } from '../utils/gpt-tok';
 
 /**
  * 提供单个文件的内容和信息

@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import { AuthState } from '../types';
-import { AUTH_CONFIG, CONFIG_KEYS } from '../utils/constants';
+import { AuthState, AUTH_CONFIG, CONFIG_KEYS } from '@connai/shared';
 
 /**
  * 处理 Whop.com 的 OAuth 登录和订阅验证

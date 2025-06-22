@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import { WebSocketMessage, MessageType, AuthState } from '../types';
-import { ERROR_MESSAGES } from '../utils/constants';
+import { WebSocketMessage, MessageType, AuthState, ERROR_MESSAGES } from '@connai/shared';
 import { getWorkspaceManager } from '../utils/workspaceManager';
 
 // 导入 context providers (暂时注释，等待创建)

@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import * as os from 'os';
-import { MachineInfo } from '../types';
-import { MACHINE_CONFIG, CONFIG_KEYS } from '../utils/constants';
+import { MachineInfo, MACHINE_CONFIG, CONFIG_KEYS } from '@connai/shared';
 
 /**
  * 处理最大设备数量限制的逻辑

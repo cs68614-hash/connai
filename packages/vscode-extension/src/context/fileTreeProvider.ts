@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { FileTreeNode } from '../types';
+import { FileTreeNode } from '@connai/shared';
 import { UriHelper } from '../utils/uriHelper';
 import { IgnoreManager } from '../utils/ignore';
 import { cache } from '../utils/cache';

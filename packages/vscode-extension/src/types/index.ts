@@ -1,101 +1,36 @@
 /**
- * 全局 TypeScript 类型定义
+ * VS Code 扩展特定的类型定义
+ * 继承和扩展 @connai/shared 中的共享类型
  */
 
-export interface VSCEntry {
-  uri: string;
-  type: 'file' | 'directory';
-  name: string;
-  path: string;
-  size?: number;
-  lastModified?: number;
+// 重新导出共享类型
+export * from '@connai/shared';
+
+// VS Code 特定的类型扩展
+import { WorkspaceInfo as BaseWorkspaceInfo } from '@connai/shared';
+import * as vscode from 'vscode';
+
+// 扩展工作区信息以包含 VS Code 特定属性
+export interface VSCodeWorkspaceInfo extends Omit<BaseWorkspaceInfo, 'folders'> {
+  folders: readonly vscode.WorkspaceFolder[];
 }
 
-export interface FileContext {
-  uri: string;
-  name: string;
-  path: string;
-  content: string;
-  language: string;
-  size: number;
-  lastModified: number;
-  encoding?: string;
+// VS Code 特定的上下文
+export interface VSCodeContext {
+  workspaceState: vscode.Memento;
+  globalState: vscode.Memento;
+  subscriptions: vscode.Disposable[];
+  extensionUri: vscode.Uri;
+  extensionPath: string;
 }
 
-export interface FolderContext {
-  uri: string;
-  name: string;
-  path: string;
-  entries: VSCEntry[];
-  totalFiles: number;
-  totalSize: number;
-}
-
-export interface FileTreeNode {
-  name: string;
-  path: string;
-  type: 'file' | 'directory';
-  children?: FileTreeNode[];
-  size?: number;
-  lastModified?: number;
-}
-
-export interface CursorContext {
-  activeEditor?: {
-    uri: string;
-    fileName: string;
-    language: string;
-    selection: {
-      start: { line: number; character: number };
-      end: { line: number; character: number };
-    };
-    selectedText?: string;
-    visibleRange: {
-      start: { line: number; character: number };
-      end: { line: number; character: number };
-    };
-  };
-  openEditors: string[];
-}
-
-export interface DiagnosticInfo {
-  uri: string;
-  fileName: string;
-  diagnostics: {
-    range: {
-      start: { line: number; character: number };
-      end: { line: number; character: number };
-    };
-    severity: number;
-    message: string;
-    source?: string;
-    code?: string | number;
-  }[];
-}
-
-export interface RecentChange {
-  uri: string;
-  fileName: string;
-  timestamp: number;
-  changes: {
-    range: {
-      start: { line: number; character: number };
-      end: { line: number; character: number };
-    };
-    rangeOffset: number;
-    rangeLength: number;
-    text: string;
-  }[];
-}
-
-export interface WorkspaceSnapshot {
-  workspaceFolders: string[];
-  openFiles: string[];
-  activeFile?: string;
-  cursor: CursorContext;
-  diagnostics: DiagnosticInfo[];
-  recentChanges: RecentChange[];
-  timestamp: number;
+// 扩展状态
+export interface ExtensionState {
+  isActive: boolean;
+  serverRunning: boolean;
+  authenticated: boolean;
+  connectedClients: number;
+  workspaceInfo?: VSCodeWorkspaceInfo;
 }
 
 export interface AuthState {

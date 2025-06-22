@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { RecentChange } from '../types';
+import { RecentChange } from '@connai/shared';
 import { UriHelper } from '../utils/uriHelper';
 
 /**

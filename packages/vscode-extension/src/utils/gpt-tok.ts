@@ -1,7 +1,6 @@
 // 注意：需要安装 tiktoken 包：npm install tiktoken
 // import { get_encoding, Tiktoken } from 'tiktoken';
-import { TOKEN_CONFIG } from './constants';
-import { TokenCount } from '../types';
+import { TOKEN_CONFIG, TokenCount } from '@connai/shared';
 
 // 临时类型定义，等待安装 tiktoken 包
 interface Tiktoken {

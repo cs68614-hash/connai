@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { COMMAND_IDS } from '../utils/constants';
+import { COMMAND_IDS } from '@connai/shared';
 import { getWebSocketManager } from '../server/manager';
 import { getWorkspaceManager } from '../utils/workspaceManager';
 // import { WhopAuth } from '../auth/whop'; // 暂时注释，等待创建文件

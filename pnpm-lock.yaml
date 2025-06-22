@@ -73,6 +73,82 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
 
+  packages/shared:
+    devDependencies:
+      typescript:
+        specifier: ^5.8.0
+        version: 5.8.3
+
+  packages/vscode-extension:
+    dependencies:
+      '@connai/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@types/ws':
+        specifier: ^8.5.12
+        version: 8.18.1
+      axios:
+        specifier: ^1.7.9
+        version: 1.10.0
+      engine.io:
+        specifier: ^6.6.4
+        version: 6.6.4
+      file-type:
+        specifier: ^21.0.0
+        version: 21.0.0
+      gpt-tok:
+        specifier: ^0.0.1
+        version: 0.0.1
+      ignore:
+        specifier: ^5.3.2
+        version: 5.3.2
+      socket.io:
+        specifier: ^4.8.1
+        version: 4.8.1
+      tiktoken:
+        specifier: ^1.0.15
+        version: 1.0.21
+      ws:
+        specifier: ^8.18.0
+        version: 8.18.2
+      yauzl:
+        specifier: ^3.2.0
+        version: 3.2.0
+    devDependencies:
+      '@types/mocha':
+        specifier: ^10.0.10
+        version: 10.0.10
+      '@types/node':
+        specifier: 20.x
+        version: 20.19.1
+      '@types/vscode':
+        specifier: ^1.101.0
+        version: 1.101.0
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.31.1
+        version: 8.34.1(@typescript-eslint/parser@8.34.1(eslint@9.29.0)(typescript@5.8.3))(eslint@9.29.0)(typescript@5.8.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.31.1
+        version: 8.34.1(eslint@9.29.0)(typescript@5.8.3)
+      '@vscode/test-cli':
+        specifier: ^0.0.10
+        version: 0.0.10
+      '@vscode/test-electron':
+        specifier: ^2.5.2
+        version: 2.5.2
+      esbuild:
+        specifier: ^0.25.3
+        version: 0.25.5
+      eslint:
+        specifier: ^9.25.1
+        version: 9.29.0
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      typescript:
+        specifier: ^5.8.3
+        version: 5.8.3
+
 packages:
 
   '@bcoe/v8-coverage@0.2.3':

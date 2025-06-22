@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DiagnosticInfo } from '../types';
+import { DiagnosticInfo } from '@connai/shared';
 import { UriHelper } from '../utils/uriHelper';
 
 /**

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { CursorContext } from '../types';
+import { CursorContext } from '@connai/shared';
 import { UriHelper } from '../utils/uriHelper';
 
 /**

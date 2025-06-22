@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { FolderContext, VSCEntry } from '../types';
+import { FolderContext, VSCEntry } from '@connai/shared';
 import { UriHelper } from '../utils/uriHelper';
 import { IgnoreManager } from '../utils/ignore';
 import { cache } from '../utils/cache';

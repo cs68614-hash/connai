@@ -1,5 +1,5 @@
 {
-  "name": "connai",
+  "name": "@connai/vscode-extension",
   "displayName": "ConnAI",
   "description": "Bridge VS Code with web clients for AI-powered code context sharing and remote control",
   "version": "0.0.1",
@@ -125,14 +125,6 @@
     }
   },
   "scripts": {
-    "build": "pnpm -r run build",
-    "build:shared": "cd packages/shared && pnpm run build",
-    "build:vscode": "cd packages/vscode-extension && pnpm run compile",
-    "dev:shared": "cd packages/shared && pnpm run dev",
-    "dev:vscode": "cd packages/vscode-extension && pnpm run watch",
-    "clean": "pnpm -r run clean",
-    "lint:monorepo": "pnpm -r run lint",
-    "test:monorepo": "pnpm -r run test",
     "vscode:prepublish": "pnpm run package",
     "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
@@ -143,7 +135,7 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
     "check-types": "tsc --noEmit",
-    "lint": "echo 'Use pnpm run lint:monorepo to lint all packages'",
+    "lint": "eslint src",
     "test": "vscode-test"
   },
   "devDependencies": {
@@ -160,6 +152,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@connai/shared": "workspace:*",
     "@types/ws": "^8.5.12",
     "axios": "^1.7.9",
     "engine.io": "^6.6.4",

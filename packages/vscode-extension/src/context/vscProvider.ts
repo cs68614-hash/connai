@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { WorkspaceSnapshot, CursorContext, DiagnosticInfo, RecentChange } from '../types';
+import { WorkspaceSnapshot, CursorContext, DiagnosticInfo, RecentChange } from '@connai/shared';
 import { FileProvider } from './fileProvider';
 import { FolderProvider } from './folderProvider';
 import { CursorProvider } from './cursorProvider';

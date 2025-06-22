@@ -1,8 +1,7 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { createServer, Server as HttpServer } from 'http';
 import * as vscode from 'vscode';
-import { SERVER_CONFIG, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../utils/constants';
-import { ServerConfig, WebSocketMessage, AuthState } from '../types';
+import { ServerConfig, WebSocketMessage, AuthState, SERVER_CONFIG, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@connai/shared';
 import { MessageHandler } from './handlers';
 import { getWorkspaceManager } from '../utils/workspaceManager';
 
