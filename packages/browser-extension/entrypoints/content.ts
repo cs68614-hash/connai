@@ -1,4 +1,6 @@
 // Content Script for ConnAI Browser Extension
+import { browser } from 'wxt/browser';
+import type { BrowserToVSCodeMessage, VSCodeToBrowserMessage, MessageResponse } from '../src/types/messages';
 
 // 定义上下文菜单项的类型
 interface MenuAction {
@@ -6,42 +8,55 @@ interface MenuAction {
   label: string;
   description: string;
   shortcut?: string;
+  contextType?: string;
 }
 
-// 菜单项配置
+// 菜单项配置 - 对应截图中的功能
 const menuActions: MenuAction[] = [
   {
-    id: 'explain-code',
-    label: '解释代码',
-    description: '解释选中的代码片段',
-    shortcut: 'Ctrl+E'
+    id: 'focused-file',
+    label: '📄 Focused File',
+    description: '获取当前聚焦的文件内容',
+    shortcut: 'Ctrl+F',
+    contextType: 'focused-file'
   },
   {
-    id: 'optimize-code',
-    label: '优化代码',
-    description: '优化选中的代码',
-    shortcut: 'Ctrl+O'
+    id: 'selected-text',
+    label: '🎯 Selected Text / Cursor',
+    description: '获取选中文本或光标位置',
+    shortcut: 'Ctrl+S',
+    contextType: 'selected-text'
   },
   {
-    id: 'generate-comment',
-    label: '生成注释',
-    description: '为代码生成注释',
-    shortcut: 'Ctrl+G'
+    id: 'all-open-tabs',
+    label: '📑 All Open Tabs',
+    description: '获取所有打开的标签页',
+    shortcut: 'Ctrl+T',
+    contextType: 'all-open-tabs'
   },
   {
-    id: 'find-bugs',
-    label: '查找错误',
-    description: '检查代码中的潜在问题'
+    id: 'problems',
+    label: '⚠️ Problems',
+    description: '获取当前问题和错误',
+    contextType: 'problems'
   },
   {
-    id: 'generate-test',
-    label: '生成测试',
-    description: '为代码生成单元测试'
+    id: 'user-rules',
+    label: '⚖️ User Rules for AI',
+    description: '获取用户AI规则设置',
+    contextType: 'user-rules'
   },
   {
-    id: 'refactor-code',
-    label: '重构代码',
-    description: '重构和改进代码结构'
+    id: 'file-tree',
+    label: '🌲 File Tree',
+    description: '获取文件树结构',
+    contextType: 'file-tree'
+  },
+  {
+    id: 'full-codebase',
+    label: '📚 Full Codebase',
+    description: '获取完整代码库',
+    contextType: 'full-codebase'
   }
 ];
 
@@ -53,6 +68,31 @@ export default {
     let menuContainer: HTMLElement | null = null;
     let currentInputElement: HTMLInputElement | HTMLTextAreaElement | null = null;
     let currentMenuTriggerPosition = 0;
+    let isConnectedToVSCode = false;
+
+    /**
+     * Send message to background script
+     */
+    const sendMessageToBackground = async (message: BrowserToVSCodeMessage): Promise<MessageResponse> => {
+      try {
+        const response = await browser.runtime.sendMessage(message);
+        return response as MessageResponse;
+      } catch (error) {
+        console.error('ConnAI Content: Failed to send message to background:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Communication error',
+          timestamp: Date.now()
+        };
+      }
+    };
+
+    /**
+     * Generate unique message ID
+     */
+    const generateMessageId = (): string => {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    };
 
     // 创建菜单 DOM 元素
     function createMenu(): HTMLElement {
@@ -168,11 +208,86 @@ export default {
     }
 
     // 处理菜单动作
-    function handleMenuAction(actionId: string) {
+    async function handleMenuAction(actionId: string) {
       if (!currentInputElement) return;
 
       const action = menuActions.find(a => a.id === actionId);
       if (!action) return;
+
+      // 检查是否连接到VS Code
+      if (!isConnectedToVSCode) {
+        // 尝试连接到VS Code
+        console.log('ConnAI: Attempting to connect to VS Code...');
+        const connectResponse = await sendMessageToBackground({
+          id: generateMessageId(),
+          type: 'Connect',
+          timestamp: Date.now(),
+          payload: { force: false }
+        });
+
+        if (!connectResponse.success) {
+          console.error('ConnAI: Failed to connect to VS Code:', connectResponse.error);
+          insertErrorMessage('❌ Failed to connect to VS Code. Please ensure VS Code extension is running.');
+          return;
+        }
+
+        isConnectedToVSCode = true;
+        console.log('ConnAI: Connected to VS Code successfully');
+      }
+
+      // 插入加载状态
+      insertLoadingMessage(action.label);
+
+      // 发送上下文请求到VS Code
+      if (action.contextType) {
+        const contextResponse = await sendMessageToBackground({
+          id: generateMessageId(),
+          type: 'GetContext',
+          timestamp: Date.now(),
+          payload: {
+            contextType: action.contextType as any,
+            options: {},
+            workspaceId: undefined
+          }
+        });
+
+        if (contextResponse.success) {
+          console.log(`ConnAI: Context request sent for ${action.contextType}`);
+          // 实际的上下文数据会通过VS Code消息异步返回
+          insertPendingMessage(action.label);
+        } else {
+          console.error('ConnAI: Failed to request context:', contextResponse.error);
+          insertErrorMessage(`❌ Failed to get ${action.label}: ${contextResponse.error}`);
+        }
+      } else {
+        // 对于不需要VS Code数据的操作，直接插入占位符
+        insertPlaceholderText(action.label);
+      }
+    }
+
+    // 插入加载消息
+    function insertLoadingMessage(actionLabel: string) {
+      insertTextAtCursor(`⏳ Loading ${actionLabel}...`);
+    }
+
+    // 插入待处理消息
+    function insertPendingMessage(actionLabel: string) {
+      insertTextAtCursor(`🔄 Waiting for ${actionLabel} data...`);
+    }
+
+    // 插入错误消息
+    function insertErrorMessage(message: string) {
+      insertTextAtCursor(message);
+    }
+
+    // 插入占位符文本
+    function insertPlaceholderText(actionLabel: string) {
+      insertTextAtCursor(`[${actionLabel}] `);
+    }
+
+    // 在光标位置插入文本
+    function insertTextAtCursor(text: string) {
+      if (!currentInputElement) return;
 
       // 获取当前光标位置
       const cursorPosition = currentInputElement.selectionStart || 0;
@@ -182,24 +297,18 @@ export default {
       const beforeTrigger = currentValue.substring(0, currentMenuTriggerPosition);
       const afterTrigger = currentValue.substring(currentMenuTriggerPosition + 1);
       
-      // 插入占位文本
-      const placeholderText = `[${action.label}] `;
-      const newValue = beforeTrigger + placeholderText + afterTrigger;
+      // 插入文本
+      const newValue = beforeTrigger + text + afterTrigger;
       
       currentInputElement.value = newValue;
       
       // 设置光标位置到插入文本之后
-      const newCursorPosition = currentMenuTriggerPosition + placeholderText.length;
+      const newCursorPosition = currentMenuTriggerPosition + text.length;
       currentInputElement.setSelectionRange(newCursorPosition, newCursorPosition);
       
       // 触发 input 事件，通知其他脚本值已更改
       const inputEvent = new Event('input', { bubbles: true });
       currentInputElement.dispatchEvent(inputEvent);
-
-      console.log(`ConnAI: Executed action "${action.label}"`);
-      
-      // TODO: 这里后续可以添加与 VS Code 扩展的通信逻辑
-      // 或者调用真实的 AI 服务
     }
 
     // 检查元素是否为输入框
@@ -318,6 +427,195 @@ export default {
         menuContainer.parentNode.removeChild(menuContainer);
       }
     });
+
+    // 监听来自VS Code的消息
+    browser.runtime.onMessage.addListener((message: VSCodeToBrowserMessage) => {
+      handleVSCodeMessage(message);
+    });
+
+    /**
+     * Handle messages from VS Code server via background script
+     */
+    function handleVSCodeMessage(message: VSCodeToBrowserMessage) {
+      console.log('ConnAI Content: Received message from VS Code:', message.type);
+
+      try {
+        switch (message.type) {
+          case 'ContextResponse':
+            handleContextResponse(message);
+            break;
+
+          case 'UpdatedFile':
+            handleUpdatedFile(message);
+            break;
+
+          case 'SentFileTree':
+            handleSentFileTree(message);
+            break;
+
+          case 'ConnectionStatus':
+            handleConnectionStatus(message);
+            break;
+
+          default:
+            console.warn('ConnAI Content: Unknown VS Code message type:', (message as any).type);
+        }
+      } catch (error) {
+        console.error('ConnAI Content: Error handling VS Code message:', error);
+      }
+    }
+
+    /**
+     * Handle context response from VS Code
+     */
+    function handleContextResponse(message: VSCodeToBrowserMessage & { type: 'ContextResponse' }) {
+      if (!currentInputElement) return;
+
+      const { contextType, data, metadata, error } = message.payload;
+      
+      if (error) {
+        console.error('ConnAI: Context response error:', error);
+        replaceLastMessage(`❌ Error getting ${contextType}: ${error}`);
+        return;
+      }
+
+      // 格式化上下文数据
+      let formattedData = '';
+      try {
+        if (contextType === 'focused-file') {
+          formattedData = `📄 Current file: ${data.fileName}\n\`\`\`${data.language}\n${data.content}\n\`\`\``;
+        } else if (contextType === 'selected-text') {
+          formattedData = `🎯 Selected: "${data.text}" (line ${data.line})`;
+        } else if (contextType === 'file-tree') {
+          formattedData = `🌲 Project structure:\n${formatFileTree(data)}`;
+        } else if (contextType === 'problems') {
+          formattedData = `⚠️ Problems (${data.length}):\n${data.map((p: any) => `- ${p.message} (${p.file}:${p.line})`).join('\n')}`;
+        } else {
+          // 通用格式化
+          formattedData = `${getContextIcon(contextType)} ${contextType}:\n${JSON.stringify(data, null, 2)}`;
+        }
+
+        // 添加token信息
+        if (metadata.tokenCount) {
+          formattedData += `\n💡 ${metadata.tokenCount} tokens`;
+        }
+
+        replaceLastMessage(formattedData);
+        
+      } catch (formatError) {
+        console.error('ConnAI: Error formatting context data:', formatError);
+        replaceLastMessage(`📋 ${contextType} data received (${metadata.tokenCount} tokens)`);
+      }
+    }
+
+    /**
+     * Handle file update from VS Code
+     */
+    function handleUpdatedFile(message: VSCodeToBrowserMessage & { type: 'UpdatedFile' }) {
+      console.log('ConnAI: File updated:', message.payload.filePath);
+      // 可以在这里添加文件更新通知的UI
+    }
+
+    /**
+     * Handle file tree from VS Code
+     */
+    function handleSentFileTree(message: VSCodeToBrowserMessage & { type: 'SentFileTree' }) {
+      console.log('ConnAI: File tree received:', message.payload.tree.length, 'items');
+      // 文件树数据已通过ContextResponse处理
+    }
+
+    /**
+     * Handle connection status change
+     */
+    function handleConnectionStatus(message: VSCodeToBrowserMessage & { type: 'ConnectionStatus' }) {
+      isConnectedToVSCode = message.payload.connected;
+      console.log('ConnAI: Connection status updated:', isConnectedToVSCode);
+      
+      if (!isConnectedToVSCode && message.payload.error) {
+        console.error('ConnAI: Connection error:', message.payload.error);
+      }
+    }
+
+    /**
+     * Replace the last inserted message
+     */
+    function replaceLastMessage(newText: string) {
+      if (!currentInputElement) return;
+
+      // 简化实现：替换光标前的"等待"消息
+      const currentValue = currentInputElement.value;
+      const cursorPosition = currentInputElement.selectionStart || 0;
+      
+      // 查找最近的等待消息模式
+      const waitingPatterns = [
+        /⏳ Loading .+\.\.\./g,
+        /🔄 Waiting for .+ data\.\.\./g,
+        /❌ .+/g
+      ];
+
+      let updatedValue = currentValue;
+      let newCursorPosition = cursorPosition;
+
+      for (const pattern of waitingPatterns) {
+        const matches = [...currentValue.matchAll(pattern)];
+        const lastMatch = matches[matches.length - 1];
+        
+        if (lastMatch && lastMatch.index !== undefined) {
+          const matchStart = lastMatch.index;
+          const matchEnd = matchStart + lastMatch[0].length;
+          
+          // 只替换在光标位置之前的匹配
+          if (matchEnd <= cursorPosition) {
+            updatedValue = updatedValue.substring(0, matchStart) + newText + updatedValue.substring(matchEnd);
+            newCursorPosition = matchStart + newText.length;
+            break;
+          }
+        }
+      }
+
+      if (updatedValue !== currentValue) {
+        currentInputElement.value = updatedValue;
+        currentInputElement.setSelectionRange(newCursorPosition, newCursorPosition);
+        
+        // 触发 input 事件
+        const inputEvent = new Event('input', { bubbles: true });
+        currentInputElement.dispatchEvent(inputEvent);
+      }
+    }
+
+    /**
+     * Format file tree data
+     */
+    function formatFileTree(tree: any[]): string {
+      const formatNode = (node: any, indent = ''): string => {
+        const icon = node.type === 'directory' ? '📁' : '📄';
+        let result = `${indent}${icon} ${node.name}\n`;
+        
+        if (node.children && node.children.length > 0) {
+          result += node.children.map((child: any) => formatNode(child, indent + '  ')).join('');
+        }
+        
+        return result;
+      };
+
+      return tree.map(node => formatNode(node)).join('');
+    }
+
+    /**
+     * Get icon for context type
+     */
+    function getContextIcon(contextType: string): string {
+      const icons: Record<string, string> = {
+        'focused-file': '📄',
+        'selected-text': '🎯',
+        'all-open-tabs': '📑',
+        'problems': '⚠️',
+        'user-rules': '⚖️',
+        'file-tree': '🌲',
+        'full-codebase': '📚'
+      };
+      return icons[contextType] || '📋';
+    }
 
     console.log('ConnAI Content Script initialized successfully');
   }
