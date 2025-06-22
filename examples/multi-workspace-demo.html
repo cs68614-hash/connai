@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConnAI Multi-Workspace Client Demo</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .workspace-selector {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        
+        .workspace-item {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .workspace-item:hover {
+            border-color: #007acc;
+            box-shadow: 0 2px 8px rgba(0,122,204,0.2);
+        }
+        
+        .workspace-item.selected {
+            border-color: #007acc;
+            background-color: #f0f8ff;
+        }
+        
+        .workspace-item.connected {
+            border-color: #28a745;
+            background-color: #f8fff8;
+        }
+        
+        .workspace-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .workspace-details {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        .status {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #005a9e;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        button.secondary {
+            background: #6c757d;
+        }
+        
+        button.secondary:hover:not(:disabled) {
+            background: #545b62;
+        }
+        
+        .output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            background: none;
+            border: none;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        
+        .tab.active {
+            color: #007acc;
+            border-bottom-color: #007acc;
+        }
+        
+        .tab:hover:not(.active) {
+            color: #333;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            .workspace-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 ConnAI Multi-Workspace Client Demo</h1>
+        <p>Connect to your VS Code extensions and manage multiple workspaces</p>
+    </div>
+
+    <div class="container">
+        <div id="status" class="status disconnected">
+            Disconnected - Select a workspace and connect
+        </div>
+
+        <div class="workspace-selector">
+            <h3>🏗️ Workspace Discovery</h3>
+            <p>Discover and connect to ConnAI-enabled VS Code workspaces on your network</p>
+            
+            <div class="form-group">
+                <label for="portRange">Port Range to Scan:</label>
+                <input type="text" id="portRange" value="6718-6818" placeholder="6718-6818">
+                <small style="color: #666; font-size: 12px;">Format: start-end (e.g., 6718-6818)</small>
+            </div>
+            
+            <button onclick="discoverWorkspaces()" id="discoverBtn">🔍 Discover Workspaces</button>
+            <button onclick="clearWorkspaces()" class="secondary">Clear List</button>
+            
+            <div id="workspaceGrid" class="workspace-grid">
+                <!-- Workspaces will be populated here -->
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="serverUrl">Manual Connection URL:</label>
+            <input type="text" id="serverUrl" value="http://localhost:6718" placeholder="http://localhost:6718">
+        </div>
+
+        <div class="form-group">
+            <label for="authToken">Auth Token:</label>
+            <input type="password" id="authToken" placeholder="Enter any token for test mode">
+        </div>
+
+        <button onclick="connect()" id="connectBtn">Connect to Selected</button>
+        <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+        <button onclick="connectManual()" class="secondary">Connect Manual</button>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('operations')">Operations</button>
+        <button class="tab" onclick="switchTab('monitoring')">Real-time</button>
+        <button class="tab" onclick="switchTab('output')">Output</button>
+    </div>
+
+    <div id="operations" class="tab-content active">
+        <div class="grid">
+            <div class="container">
+                <h3>📁 Workspace Operations</h3>
+                <button onclick="getWorkspace()" id="workspaceBtn" disabled>Get Workspace Context</button>
+                <button onclick="getCursor()" id="cursorBtn" disabled>Get Cursor Position</button>
+                <button onclick="getDiagnostics()" id="diagnosticsBtn" disabled>Get Diagnostics</button>
+            </div>
+
+            <div class="container">
+                <h3>📄 File Operations</h3>
+                <div class="form-group">
+                    <label for="filePath">File Path:</label>
+                    <input type="text" id="filePath" placeholder="/path/to/file.ts">
+                </div>
+                <button onclick="getFile()" id="fileBtn" disabled>Get File Content</button>
+                <button onclick="searchFiles()" id="searchBtn" disabled>Search Files (*.ts)</button>
+            </div>
+
+            <div class="container">
+                <h3>⚡ Commands</h3>
+                <div class="form-group">
+                    <label for="command">VS Code Command:</label>
+                    <select id="command">
+                        <option value="workbench.action.files.save">Save Current File</option>
+                        <option value="workbench.action.openSettings">Open Settings</option>
+                        <option value="workbench.view.explorer">Show Explorer</option>
+                        <option value="workbench.action.showCommands">Show Commands</option>
+                    </select>
+                </div>
+                <button onclick="executeCommand()" id="commandBtn" disabled>Execute Command</button>
+            </div>
+
+            <div class="container">
+                <h3>🔄 Connection Management</h3>
+                <button onclick="refreshWorkspaceInfo()" id="refreshBtn" disabled>Refresh Workspace Info</button>
+                <button onclick="pingServer()" id="pingBtn" disabled>Ping Server</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="monitoring" class="tab-content">
+        <div class="container">
+            <h3>📊 Real-time Updates</h3>
+            <button onclick="startMonitoring()" id="monitorBtn" disabled>Start Monitoring</button>
+            <button onclick="stopMonitoring()" id="stopMonitorBtn" disabled>Stop Monitoring</button>
+            <div id="updates" class="output" style="height: 400px;"></div>
+        </div>
+    </div>
+
+    <div id="output" class="tab-content">
+        <div class="container">
+            <h3>📋 Output Log</h3>
+            <button onclick="clearOutput()">Clear Output</button>
+            <div id="outputLog" class="output" style="height: 500px;"></div>
+        </div>
+    </div>
+
+    <script>
+        class ConnAIMultiWorkspaceClient {
+            constructor() {
+                this.connections = new Map(); // workspaceId -> connection
+                this.discoveredWorkspaces = new Map(); // port -> workspaceInfo
+                this.activeConnection = null;
+                this.selectedWorkspace = null;
+            }
+
+            async discoverWorkspaces(startPort = 6718, endPort = 6818) {
+                this.log('🔍 Starting workspace discovery...');
+                const discovered = new Map();
+                const promises = [];
+
+                for (let port = startPort; port <= endPort; port++) {
+                    promises.push(this.testConnection(`http://localhost:${port}`, port));
+                }
+
+                const results = await Promise.allSettled(promises);
+                
+                for (let i = 0; i < results.length; i++) {
+                    const result = results[i];
+                    const port = startPort + i;
+                    
+                    if (result.status === 'fulfilled' && result.value) {
+                        discovered.set(port, result.value);
+                    }
+                }
+
+                this.discoveredWorkspaces = discovered;
+                this.updateWorkspaceGrid();
+                
+                this.log(`✅ Discovery complete. Found ${discovered.size} workspace(s).`);
+                return discovered;
+            }
+
+            async testConnection(url, port) {
+                return new Promise((resolve) => {
+                    const socket = io(url, {
+                        timeout: 2000,
+                        autoConnect: false
+                    });
+
+                    const timeout = setTimeout(() => {
+                        socket.disconnect();
+                        resolve(null);
+                    }, 2000);
+
+                    socket.on('connect', () => {
+                        clearTimeout(timeout);
+                        
+                        // Try to get workspace info
+                        socket.emit('auth', { token: 'discovery-token' });
+                        
+                        socket.once('auth-result', (result) => {
+                            if (result.success) {
+                                socket.emit('get-context', { type: 'workspace' });
+                                
+                                socket.once('context-response', (response) => {
+                                    socket.disconnect();
+                                    resolve({
+                                        port,
+                                        url,
+                                        workspace: response.data?.workspace || {
+                                            name: `Workspace on port ${port}`,
+                                            id: `workspace-${port}`,
+                                            path: 'Unknown'
+                                        }
+                                    });
+                                });
+
+                                setTimeout(() => {
+                                    socket.disconnect();
+                                    resolve({
+                                        port,
+                                        url,
+                                        workspace: {
+                                            name: `Workspace on port ${port}`,
+                                            id: `workspace-${port}`,
+                                            path: 'Unknown'
+                                        }
+                                    });
+                                }, 1000);
+                            } else {
+                                socket.disconnect();
+                                resolve(null);
+                            }
+                        });
+
+                        setTimeout(() => {
+                            socket.disconnect();
+                            resolve({
+                                port,
+                                url,
+                                workspace: {
+                                    name: `Workspace on port ${port}`,
+                                    id: `workspace-${port}`,
+                                    path: 'Unknown'
+                                }
+                            });
+                        }, 1500);
+                    });
+
+                    socket.on('connect_error', () => {
+                        clearTimeout(timeout);
+                        resolve(null);
+                    });
+
+                    socket.connect();
+                });
+            }
+
+            updateWorkspaceGrid() {
+                const grid = document.getElementById('workspaceGrid');
+                grid.innerHTML = '';
+
+                if (this.discoveredWorkspaces.size === 0) {
+                    grid.innerHTML = '<p style="text-align: center; color: #666; margin: 20px 0;">No workspaces discovered. Try adjusting the port range.</p>';
+                    return;
+                }
+
+                this.discoveredWorkspaces.forEach((info, port) => {
+                    const item = document.createElement('div');
+                    item.className = 'workspace-item';
+                    item.dataset.port = port;
+                    
+                    const isConnected = this.connections.has(info.workspace.id);
+                    if (isConnected) {
+                        item.classList.add('connected');
+                    }
+                    
+                    if (this.selectedWorkspace === port) {
+                        item.classList.add('selected');
+                    }
+
+                    item.innerHTML = `
+                        <div class="workspace-title">${info.workspace.name}</div>
+                        <div class="workspace-details">
+                            <div>Port: ${port}</div>
+                            <div>ID: ${info.workspace.id}</div>
+                            <div>Path: ${info.workspace.path || 'Unknown'}</div>
+                            <div>Status: ${isConnected ? '🟢 Connected' : '⚪ Available'}</div>
+                        </div>
+                    `;
+
+                    item.onclick = () => this.selectWorkspace(port);
+                    grid.appendChild(item);
+                });
+            }
+
+            selectWorkspace(port) {
+                this.selectedWorkspace = port;
+                
+                // Update UI
+                document.querySelectorAll('.workspace-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                
+                const selectedItem = document.querySelector(`[data-port="${port}"]`);
+                if (selectedItem) {
+                    selectedItem.classList.add('selected');
+                }
+
+                // Update connection URL
+                const info = this.discoveredWorkspaces.get(port);
+                if (info) {
+                    document.getElementById('serverUrl').value = info.url;
+                }
+
+                this.log(`📌 Selected workspace on port ${port}`);
+            }
+
+            async connect(token) {
+                if (!this.selectedWorkspace) {
+                    alert('Please select a workspace first');
+                    return;
+                }
+
+                const port = this.selectedWorkspace;
+                const info = this.discoveredWorkspaces.get(port);
+                if (!info) {
+                    alert('Selected workspace not found');
+                    return;
+                }
+
+                try {
+                    const connection = new ConnAIConnection(info.url);
+                    await connection.connect(token || document.getElementById('authToken').value);
+                    
+                    this.connections.set(info.workspace.id, connection);
+                    this.activeConnection = connection;
+                    
+                    this.updateWorkspaceGrid();
+                    this.updateUI();
+                    
+                    this.log(`✅ Connected to workspace: ${info.workspace.name}`);
+                } catch (error) {
+                    this.log(`❌ Connection failed: ${error.message}`);
+                }
+            }
+
+            async connectManual() {
+                const url = document.getElementById('serverUrl').value;
+                const token = document.getElementById('authToken').value;
+
+                if (!token) {
+                    alert('Please enter an auth token');
+                    return;
+                }
+
+                try {
+                    const connection = new ConnAIConnection(url);
+                    await connection.connect(token);
+                    
+                    // Try to get workspace info
+                    const workspaceInfo = await connection.getWorkspaceInfo();
+                    const workspaceId = workspaceInfo?.workspace?.id || `manual-${Date.now()}`;
+                    
+                    this.connections.set(workspaceId, connection);
+                    this.activeConnection = connection;
+                    
+                    this.updateUI();
+                    this.log(`✅ Manual connection successful`);
+                } catch (error) {
+                    this.log(`❌ Manual connection failed: ${error.message}`);
+                }
+            }
+
+            disconnect() {
+                if (this.activeConnection) {
+                    this.activeConnection.disconnect();
+                    
+                    // Remove from connections
+                    for (const [id, conn] of this.connections.entries()) {
+                        if (conn === this.activeConnection) {
+                            this.connections.delete(id);
+                            break;
+                        }
+                    }
+                    
+                    this.activeConnection = null;
+                    this.updateWorkspaceGrid();
+                    this.updateUI();
+                    this.log('🔌 Disconnected');
+                }
+            }
+
+            updateUI() {
+                const connected = this.activeConnection?.authenticated;
+                const status = document.getElementById('status');
+                
+                if (connected) {
+                    status.textContent = '✅ Connected and authenticated';
+                    status.className = 'status connected';
+                } else {
+                    status.textContent = '❌ Disconnected';
+                    status.className = 'status disconnected';
+                }
+
+                // Enable/disable buttons
+                const buttons = ['workspaceBtn', 'cursorBtn', 'diagnosticsBtn', 'fileBtn', 'searchBtn', 'commandBtn', 'monitorBtn', 'refreshBtn', 'pingBtn'];
+                buttons.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (btn) btn.disabled = !connected;
+                });
+
+                document.getElementById('connectBtn').disabled = connected;
+                document.getElementById('disconnectBtn').disabled = !connected;
+                document.getElementById('stopMonitorBtn').disabled = !connected || !this.activeConnection?.monitoring;
+            }
+
+            log(message) {
+                const output = document.getElementById('outputLog');
+                const timestamp = new Date().toLocaleTimeString();
+                output.textContent += `[${timestamp}] ${message}\n`;
+                output.scrollTop = output.scrollHeight;
+            }
+
+            logUpdate(message) {
+                const updates = document.getElementById('updates');
+                const timestamp = new Date().toLocaleTimeString();
+                updates.textContent += `[${timestamp}] ${message}\n`;
+                updates.scrollTop = updates.scrollHeight;
+            }
+        }
+
+        class ConnAIConnection {
+            constructor(url) {
+                this.url = url;
+                this.socket = null;
+                this.authenticated = false;
+                this.monitoring = false;
+            }
+
+            async connect(token) {
+                this.socket = io(this.url, { timeout: 10000 });
+                this.setupEventListeners();
+
+                return new Promise((resolve, reject) => {
+                    this.socket.on('connect', () => {
+                        client.log('Connected to ConnAI extension at ' + this.url);
+                        
+                        this.socket.emit('auth', { token });
+
+                        this.socket.once('auth-result', (result) => {
+                            if (result.success) {
+                                this.authenticated = true;
+                                client.log('✅ Authentication successful');
+                                resolve();
+                            } else {
+                                reject(new Error(result.error || 'Authentication failed'));
+                            }
+                        });
+                    });
+
+                    this.socket.on('connect_error', reject);
+                    setTimeout(() => reject(new Error('Connection timeout')), 10000);
+                });
+            }
+
+            setupEventListeners() {
+                this.socket.on('disconnect', () => {
+                    client.log('❌ Disconnected from server');
+                    this.authenticated = false;
+                    client.updateUI();
+                });
+
+                this.socket.on('error', (error) => {
+                    client.log('⚠️ Socket error: ' + error);
+                });
+
+                // Real-time updates
+                this.socket.on('workspace-changed', (data) => {
+                    client.logUpdate('🔄 Workspace changed: ' + JSON.stringify(data, null, 2));
+                });
+
+                this.socket.on('file-changed', (data) => {
+                    client.logUpdate('📝 File changed: ' + JSON.stringify(data, null, 2));
+                });
+
+                this.socket.on('cursor-changed', (data) => {
+                    client.logUpdate('👆 Cursor moved: ' + JSON.stringify(data, null, 2));
+                });
+            }
+
+            async sendRequest(event, data, responseEvent) {
+                if (!this.authenticated) {
+                    throw new Error('Not authenticated');
+                }
+
+                return new Promise((resolve, reject) => {
+                    this.socket.emit(event, data);
+
+                    this.socket.once(responseEvent, (response) => {
+                        if (response.error) {
+                            reject(new Error(response.error));
+                        } else {
+                            resolve(response);
+                        }
+                    });
+
+                    setTimeout(() => reject(new Error('Request timeout')), 5000);
+                });
+            }
+
+            async getWorkspaceInfo() {
+                return this.sendRequest('get-context', { type: 'workspace' }, 'context-response');
+            }
+
+            disconnect() {
+                if (this.socket) {
+                    this.socket.disconnect();
+                }
+                this.authenticated = false;
+            }
+
+            startMonitoring() {
+                this.monitoring = true;
+            }
+
+            stopMonitoring() {
+                this.monitoring = false;
+            }
+        }
+
+        // Global client instance
+        let client = new ConnAIMultiWorkspaceClient();
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Discovery functions
+        async function discoverWorkspaces() {
+            const rangeInput = document.getElementById('portRange').value;
+            const [start, end] = rangeInput.split('-').map(s => parseInt(s.trim()));
+            
+            if (isNaN(start) || isNaN(end) || start >= end) {
+                alert('Invalid port range. Use format: start-end (e.g., 6718-6818)');
+                return;
+            }
+
+            document.getElementById('discoverBtn').disabled = true;
+            await client.discoverWorkspaces(start, end);
+            document.getElementById('discoverBtn').disabled = false;
+        }
+
+        function clearWorkspaces() {
+            client.discoveredWorkspaces.clear();
+            client.selectedWorkspace = null;
+            client.updateWorkspaceGrid();
+            client.log('🗑️ Workspace list cleared');
+        }
+
+        // Connection functions
+        async function connect() {
+            const token = document.getElementById('authToken').value;
+            if (!token) {
+                alert('Please enter an auth token');
+                return;
+            }
+            await client.connect(token);
+        }
+
+        async function connectManual() {
+            await client.connectManual();
+        }
+
+        function disconnect() {
+            client.disconnect();
+        }
+
+        // Operation functions
+        async function getWorkspace() {
+            try {
+                const workspace = await client.activeConnection.sendRequest('get-context', { type: 'workspace' }, 'context-response');
+                client.log('📁 Workspace: ' + JSON.stringify(workspace, null, 2));
+            } catch (error) {
+                client.log('❌ Error getting workspace: ' + error.message);
+            }
+        }
+
+        async function getCursor() {
+            try {
+                const cursor = await client.activeConnection.sendRequest('get-context', { type: 'cursor' }, 'context-response');
+                client.log('👆 Cursor: ' + JSON.stringify(cursor, null, 2));
+            } catch (error) {
+                client.log('❌ Error getting cursor: ' + error.message);
+            }
+        }
+
+        async function getDiagnostics() {
+            try {
+                const diagnostics = await client.activeConnection.sendRequest('get-context', { type: 'diagnostics' }, 'context-response');
+                client.log('⚠️ Diagnostics: ' + JSON.stringify(diagnostics, null, 2));
+            } catch (error) {
+                client.log('❌ Error getting diagnostics: ' + error.message);
+            }
+        }
+
+        async function getFile() {
+            const filePath = document.getElementById('filePath').value;
+            if (!filePath) {
+                alert('Please enter a file path');
+                return;
+            }
+
+            try {
+                const file = await client.activeConnection.sendRequest('get-file', { path: filePath }, 'file-response');
+                client.log('📄 File content: ' + JSON.stringify(file, null, 2));
+            } catch (error) {
+                client.log('❌ Error getting file: ' + error.message);
+            }
+        }
+
+        async function searchFiles() {
+            try {
+                const results = await client.activeConnection.sendRequest('search-files', { query: '*.ts' }, 'search-response');
+                client.log('🔍 Search results: ' + JSON.stringify(results, null, 2));
+            } catch (error) {
+                client.log('❌ Error searching files: ' + error.message);
+            }
+        }
+
+        async function executeCommand() {
+            const command = document.getElementById('command').value;
+            
+            try {
+                const result = await client.activeConnection.sendRequest('execute-command', { command }, 'command-response');
+                client.log('⚡ Command result: ' + JSON.stringify(result, null, 2));
+            } catch (error) {
+                client.log('❌ Error executing command: ' + error.message);
+            }
+        }
+
+        async function refreshWorkspaceInfo() {
+            try {
+                const info = await client.activeConnection.getWorkspaceInfo();
+                client.log('🔄 Workspace info refreshed: ' + JSON.stringify(info, null, 2));
+            } catch (error) {
+                client.log('❌ Error refreshing workspace info: ' + error.message);
+            }
+        }
+
+        async function pingServer() {
+            try {
+                const start = Date.now();
+                await client.activeConnection.sendRequest('ping', {}, 'pong');
+                const latency = Date.now() - start;
+                client.log(`🏓 Ping successful - Latency: ${latency}ms`);
+            } catch (error) {
+                client.log('❌ Ping failed: ' + error.message);
+            }
+        }
+
+        function startMonitoring() {
+            if (client.activeConnection) {
+                client.activeConnection.startMonitoring();
+                client.log('📊 Started real-time monitoring');
+                document.getElementById('monitorBtn').disabled = true;
+                document.getElementById('stopMonitorBtn').disabled = false;
+            }
+        }
+
+        function stopMonitoring() {
+            if (client.activeConnection) {
+                client.activeConnection.stopMonitoring();
+                client.log('⏹️ Stopped real-time monitoring');
+                document.getElementById('monitorBtn').disabled = false;
+                document.getElementById('stopMonitorBtn').disabled = true;
+            }
+        }
+
+        function clearOutput() {
+            document.getElementById('outputLog').textContent = '';
+        }
+
+        // Initialize UI
+        client.updateUI();
+
+        // Auto-discover on load
+        setTimeout(() => {
+            discoverWorkspaces();
+        }, 1000);
+    </script>
+</body>
+</html>

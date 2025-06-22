@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConnAI Web Client Demo</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background: #005a9e;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 ConnAI Web Client Demo</h1>
+        <p>Connect to your VS Code extension and explore workspace context</p>
+    </div>
+
+    <div class="container">
+        <div id="status" class="status disconnected">
+            Disconnected - Enter your auth token and connect
+        </div>
+
+        <div class="form-group">
+            <label for="serverUrl">Server URL:</label>
+            <input type="text" id="serverUrl" value="http://localhost:6718">
+        </div>
+
+        <div class="form-group">
+            <label for="authToken">Auth Token:</label>
+            <input type="password" id="authToken" placeholder="Enter your authentication token">
+        </div>
+
+        <button onclick="connect()" id="connectBtn">Connect</button>
+        <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+    </div>
+
+    <div class="grid">
+        <div class="container">
+            <h3>📁 Workspace Operations</h3>
+            <button onclick="getWorkspace()" id="workspaceBtn" disabled>Get Workspace Context</button>
+            <button onclick="getCursor()" id="cursorBtn" disabled>Get Cursor Position</button>
+            <button onclick="getDiagnostics()" id="diagnosticsBtn" disabled>Get Diagnostics</button>
+        </div>
+
+        <div class="container">
+            <h3>📄 File Operations</h3>
+            <div class="form-group">
+                <label for="filePath">File Path:</label>
+                <input type="text" id="filePath" placeholder="/path/to/file.ts">
+            </div>
+            <button onclick="getFile()" id="fileBtn" disabled>Get File Content</button>
+            <button onclick="searchFiles()" id="searchBtn" disabled>Search Files (*.ts)</button>
+        </div>
+
+        <div class="container">
+            <h3>⚡ Commands</h3>
+            <div class="form-group">
+                <label for="command">VS Code Command:</label>
+                <select id="command">
+                    <option value="workbench.action.files.save">Save Current File</option>
+                    <option value="workbench.action.openSettings">Open Settings</option>
+                    <option value="workbench.view.explorer">Show Explorer</option>
+                    <option value="workbench.action.showCommands">Show Commands</option>
+                </select>
+            </div>
+            <button onclick="executeCommand()" id="commandBtn" disabled>Execute Command</button>
+        </div>
+
+        <div class="container">
+            <h3>📊 Real-time Updates</h3>
+            <button onclick="startMonitoring()" id="monitorBtn" disabled>Start Monitoring</button>
+            <button onclick="stopMonitoring()" id="stopMonitorBtn" disabled>Stop Monitoring</button>
+            <div id="updates" class="output" style="height: 200px;"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h3>📋 Output</h3>
+        <button onclick="clearOutput()">Clear Output</button>
+        <div id="output" class="output"></div>
+    </div>
+
+    <script>
+        class ConnAIWebClient {
+            constructor(url = 'http://localhost:6718') {
+                this.url = url;
+                this.socket = null;
+                this.authenticated = false;
+                this.monitoring = false;
+            }
+
+            async connect(token) {
+                this.socket = io(this.url, {
+                    timeout: 10000,
+                });
+
+                this.setupEventListeners();
+
+                return new Promise((resolve, reject) => {
+                    this.socket.on('connect', () => {
+                        this.log('Connected to ConnAI extension');
+                        
+                        this.socket.emit('auth', { token });
+
+                        this.socket.once('auth-result', (result) => {
+                            if (result.success) {
+                                this.authenticated = true;
+                                this.log('✅ Authentication successful');
+                                resolve();
+                            } else {
+                                reject(new Error(result.error || 'Authentication failed'));
+                            }
+                        });
+                    });
+
+                    this.socket.on('connect_error', (error) => {
+                        reject(error);
+                    });
+
+                    setTimeout(() => {
+                        reject(new Error('Connection timeout'));
+                    }, 10000);
+                });
+            }
+
+            setupEventListeners() {
+                this.socket.on('disconnect', () => {
+                    this.log('❌ Disconnected from server');
+                    this.authenticated = false;
+                    updateUI();
+                });
+
+                this.socket.on('error', (error) => {
+                    this.log('⚠️ Socket error: ' + error);
+                });
+
+                // Real-time updates
+                this.socket.on('workspace-changed', (data) => {
+                    this.logUpdate('🔄 Workspace changed: ' + JSON.stringify(data, null, 2));
+                });
+
+                this.socket.on('file-changed', (data) => {
+                    this.logUpdate('📝 File changed: ' + JSON.stringify(data, null, 2));
+                });
+
+                this.socket.on('cursor-changed', (data) => {
+                    this.logUpdate('👆 Cursor moved: ' + JSON.stringify(data, null, 2));
+                });
+            }
+
+            async sendRequest(event, data, responseEvent) {
+                if (!this.authenticated) {
+                    throw new Error('Not authenticated');
+                }
+
+                return new Promise((resolve, reject) => {
+                    this.socket.emit(event, data);
+
+                    this.socket.once(responseEvent, (response) => {
+                        if (response.error) {
+                            reject(new Error(response.error));
+                        } else {
+                            resolve(response);
+                        }
+                    });
+
+                    setTimeout(() => {
+                        reject(new Error('Request timeout'));
+                    }, 5000);
+                });
+            }
+
+            log(message) {
+                const output = document.getElementById('output');
+                const timestamp = new Date().toLocaleTimeString();
+                output.textContent += `[${timestamp}] ${message}\n`;
+                output.scrollTop = output.scrollHeight;
+            }
+
+            logUpdate(message) {
+                const updates = document.getElementById('updates');
+                const timestamp = new Date().toLocaleTimeString();
+                updates.textContent += `[${timestamp}] ${message}\n`;
+                updates.scrollTop = updates.scrollHeight;
+            }
+
+            disconnect() {
+                if (this.socket) {
+                    this.socket.disconnect();
+                }
+                this.authenticated = false;
+            }
+        }
+
+        let client = null;
+
+        async function connect() {
+            const url = document.getElementById('serverUrl').value;
+            const token = document.getElementById('authToken').value;
+
+            if (!token) {
+                alert('Please enter an auth token');
+                return;
+            }
+
+            try {
+                client = new ConnAIWebClient(url);
+                await client.connect(token);
+                updateUI();
+            } catch (error) {
+                client.log('❌ Connection failed: ' + error.message);
+            }
+        }
+
+        function disconnect() {
+            if (client) {
+                client.disconnect();
+                client = null;
+                updateUI();
+            }
+        }
+
+        function updateUI() {
+            const connected = client && client.authenticated;
+            const status = document.getElementById('status');
+            
+            if (connected) {
+                status.textContent = '✅ Connected and authenticated';
+                status.className = 'status connected';
+            } else {
+                status.textContent = '❌ Disconnected';
+                status.className = 'status disconnected';
+            }
+
+            // Enable/disable buttons
+            const buttons = ['workspaceBtn', 'cursorBtn', 'diagnosticsBtn', 'fileBtn', 'searchBtn', 'commandBtn', 'monitorBtn'];
+            buttons.forEach(id => {
+                document.getElementById(id).disabled = !connected;
+            });
+
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('stopMonitorBtn').disabled = !connected || !client?.monitoring;
+        }
+
+        async function getWorkspace() {
+            try {
+                const workspace = await client.sendRequest('get-context', { type: 'workspace' }, 'context-response');
+                client.log('📁 Workspace: ' + JSON.stringify(workspace, null, 2));
+            } catch (error) {
+                client.log('❌ Error getting workspace: ' + error.message);
+            }
+        }
+
+        async function getCursor() {
+            try {
+                const cursor = await client.sendRequest('get-context', { type: 'cursor' }, 'context-response');
+                client.log('👆 Cursor: ' + JSON.stringify(cursor, null, 2));
+            } catch (error) {
+                client.log('❌ Error getting cursor: ' + error.message);
+            }
+        }
+
+        async function getDiagnostics() {
+            try {
+                const diagnostics = await client.sendRequest('get-context', { type: 'diagnostics' }, 'context-response');
+                client.log('⚠️ Diagnostics: ' + JSON.stringify(diagnostics, null, 2));
+            } catch (error) {
+                client.log('❌ Error getting diagnostics: ' + error.message);
+            }
+        }
+
+        async function getFile() {
+            const filePath = document.getElementById('filePath').value;
+            if (!filePath) {
+                alert('Please enter a file path');
+                return;
+            }
+
+            try {
+                const file = await client.sendRequest('get-file', { path: filePath }, 'file-response');
+                client.log('📄 File content: ' + JSON.stringify(file, null, 2));
+            } catch (error) {
+                client.log('❌ Error getting file: ' + error.message);
+            }
+        }
+
+        async function searchFiles() {
+            try {
+                const results = await client.sendRequest('search-files', { query: '*.ts' }, 'search-response');
+                client.log('🔍 Search results: ' + JSON.stringify(results, null, 2));
+            } catch (error) {
+                client.log('❌ Error searching files: ' + error.message);
+            }
+        }
+
+        async function executeCommand() {
+            const command = document.getElementById('command').value;
+            
+            try {
+                const result = await client.sendRequest('execute-command', { command }, 'command-response');
+                client.log('⚡ Command result: ' + JSON.stringify(result, null, 2));
+            } catch (error) {
+                client.log('❌ Error executing command: ' + error.message);
+            }
+        }
+
+        function startMonitoring() {
+            if (client) {
+                client.monitoring = true;
+                client.log('📊 Started real-time monitoring');
+                document.getElementById('monitorBtn').disabled = true;
+                document.getElementById('stopMonitorBtn').disabled = false;
+            }
+        }
+
+        function stopMonitoring() {
+            if (client) {
+                client.monitoring = false;
+                client.log('⏹️ Stopped real-time monitoring');
+                document.getElementById('monitorBtn').disabled = false;
+                document.getElementById('stopMonitorBtn').disabled = true;
+            }
+        }
+
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+        }
+
+        // Initialize UI
+        updateUI();
+    </script>
+</body>
+</html>
