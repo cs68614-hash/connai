@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConnAI Content Script Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .chat-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        .chat-input:focus {
+            border-color: #007bff;
+        }
+        
+        .instructions {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .instructions h3 {
+            margin-top: 0;
+            color: #0056b3;
+        }
+        
+        .instructions ul {
+            margin-bottom: 0;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        .note {
+            margin-top: 15px;
+            padding: 10px;
+            background: #fff3cd;
+            border-radius: 6px;
+            border-left: 4px solid #ffc107;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 ConnAI Content Script Test Page</h1>
+        
+        <textarea 
+            class="chat-input" 
+            placeholder="Type your message here... Try typing '#' to see the context menu!"
+            aria-label="Message input"
+        ></textarea>
+        
+        <div class="instructions">
+            <h3>🧪 Testing Instructions:</h3>
+            <ul>
+                <li>Click in the textarea above to focus it</li>
+                <li>Type the <strong>#</strong> symbol to trigger the ConnAI context menu</li>
+                <li>You should see a popup with options like:
+                    <ul>
+                        <li>� 解释代码</li>
+                        <li>⚡ 优化代码</li>
+                        <li>📝 生成注释</li>
+                        <li>� 查找错误</li>
+                        <li>🧪 生成测试</li>
+                        <li>🔧 重构代码</li>
+                    </ul>
+                </li>
+                <li>Click on any menu item to insert placeholder text</li>
+                <li>Press <strong>Escape</strong> to close the menu</li>
+            </ul>
+        </div>
+        
+        <div class="note">
+            <strong>Note:</strong> This test page simulates a chat interface. The content script should automatically detect this textarea and attach the # trigger functionality.
+        </div>
+    </div>
+    
+    <script>
+        // Add some debugging to see if the content script is working
+        console.log('Test page loaded');
+        
+        // Check if content script is attached
+        setInterval(() => {
+            const textarea = document.querySelector('textarea');
+            if (textarea && textarea.hasAttribute('data-connai-attached')) {
+                console.log('✅ Content script successfully attached to textarea');
+            }
+        }, 2000);
+    </script>
+</body>
+</html>
