@@ -214,25 +214,49 @@ export default {
       const action = menuActions.find(a => a.id === actionId);
       if (!action) return;
 
-      // 检查是否连接到VS Code
+      // 检查是否连接到VS Code，并尝试自动连接
       if (!isConnectedToVSCode) {
-        // 尝试连接到VS Code
-        console.log('ConnAI: Attempting to connect to VS Code...');
-        const connectResponse = await sendMessageToBackground({
-          id: generateMessageId(),
-          type: 'Connect',
-          timestamp: Date.now(),
-          payload: { force: false }
-        });
+        console.log('ConnAI: Not connected, attempting auto-connect...');
+        insertLoadingMessage('Connecting to VS Code');
+        
+        try {
+          // 首先尝试触发背景脚本的自动连接
+          const connectResponse = await sendMessageToBackground({
+            id: generateMessageId(),
+            type: 'Connect',
+            timestamp: Date.now(),
+            payload: { force: false }
+          });
 
-        if (!connectResponse.success) {
-          console.error('ConnAI: Failed to connect to VS Code:', connectResponse.error);
-          insertErrorMessage('❌ Failed to connect to VS Code. Please ensure VS Code extension is running.');
+          if (!connectResponse.success) {
+            console.warn('ConnAI: Initial connect failed, trying force connect...');
+            
+            // 如果失败，尝试强制连接
+            const forceConnectResponse = await sendMessageToBackground({
+              id: generateMessageId(),
+              type: 'Connect',
+              timestamp: Date.now(),
+              payload: { force: true }
+            });
+
+            if (!forceConnectResponse.success) {
+              console.error('ConnAI: All connection attempts failed:', forceConnectResponse.error);
+              insertErrorMessage(`❌ Cannot connect to VS Code. Please ensure:\n1. VS Code is running\n2. ConnAI extension is installed and active\n3. Check if port is accessible (usually 6797 or 8080)`);
+              return;
+            }
+          }
+
+          isConnectedToVSCode = true;
+          console.log('ConnAI: Auto-connect successful');
+          
+          // 短暂延迟以确保连接稳定
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+        } catch (error) {
+          console.error('ConnAI: Connection error:', error);
+          insertErrorMessage(`❌ Connection error: ${error instanceof Error ? error.message : 'Unknown error'}`);
           return;
         }
-
-        isConnectedToVSCode = true;
-        console.log('ConnAI: Connected to VS Code successfully');
       }
 
       // 插入加载状态
@@ -240,24 +264,29 @@ export default {
 
       // 发送上下文请求到VS Code
       if (action.contextType) {
-        const contextResponse = await sendMessageToBackground({
-          id: generateMessageId(),
-          type: 'GetContext',
-          timestamp: Date.now(),
-          payload: {
-            contextType: action.contextType as any,
-            options: {},
-            workspaceId: undefined
-          }
-        });
+        try {
+          const contextResponse = await sendMessageToBackground({
+            id: generateMessageId(),
+            type: 'GetContext',
+            timestamp: Date.now(),
+            payload: {
+              contextType: action.contextType as any,
+              options: {},
+              workspaceId: undefined
+            }
+          });
 
-        if (contextResponse.success) {
-          console.log(`ConnAI: Context request sent for ${action.contextType}`);
-          // 实际的上下文数据会通过VS Code消息异步返回
-          insertPendingMessage(action.label);
-        } else {
-          console.error('ConnAI: Failed to request context:', contextResponse.error);
-          insertErrorMessage(`❌ Failed to get ${action.label}: ${contextResponse.error}`);
+          if (contextResponse.success) {
+            console.log(`ConnAI: Context request sent for ${action.contextType}`);
+            // 实际的上下文数据会通过VS Code消息异步返回
+            insertPendingMessage(action.label);
+          } else {
+            console.error('ConnAI: Failed to request context:', contextResponse.error);
+            insertErrorMessage(`❌ Failed to get ${action.label}: ${contextResponse.error}`);
+          }
+        } catch (error) {
+          console.error('ConnAI: Context request error:', error);
+          insertErrorMessage(`❌ Request failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       } else {
         // 对于不需要VS Code数据的操作，直接插入占位符

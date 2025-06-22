@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConnAI Integration Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status.scanning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007cba;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .form-group {
+            margin: 10px 0;
+        }
+        label {
+            display: inline-block;
+            width: 120px;
+            font-weight: bold;
+        }
+        .server-list {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .server-item {
+            padding: 8px;
+            margin: 4px 0;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+        }
+        .server-item:hover {
+            background-color: #e9ecef;
+        }
+        .server-item.selected {
+            background-color: #cce5ff;
+            border-color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ConnAI Integration Test</h1>
+        
+        <div id="status" class="status disconnected">
+            Ready to test
+        </div>
+
+        <div class="container">
+            <h3>🔍 Auto-detect ConnAI Servers</h3>
+            <button id="scanBtn">Scan for ConnAI Servers</button>
+            <button id="quickScanBtn">Quick Scan</button>
+            
+            <div id="serverList" class="server-list" style="display: none;">
+                <h4>Found ConnAI Servers:</h4>
+                <div id="servers"></div>
+            </div>
+        </div>
+
+        <div class="container">
+            <h3>📡 Manual Connection</h3>
+            <div class="form-group">
+                <label for="serverUrl">Server URL:</label>
+                <input type="text" id="serverUrl" placeholder="http://localhost" value="http://localhost">
+            </div>
+            <div class="form-group">
+                <label for="port">Port:</label>
+                <input type="number" id="port" placeholder="6797" value="6797" min="1" max="65535">
+            </div>
+            <button id="connectBtn">Connect</button>
+            <button id="disconnectBtn" disabled>Disconnect</button>
+        </div>
+
+        <div class="container">
+            <h3>🧪 Test Operations</h3>
+            <div class="form-group">
+                <label for="operation">Operation:</label>
+                <select id="operation">
+                    <option value="get_context">Get Context</option>
+                    <option value="get_workspace_info">Get Workspace Info</option>
+                    <option value="authenticate">Authenticate</option>
+                    <option value="read_file">Read File</option>
+                </select>
+                <button id="sendRequestBtn" disabled>Send Request</button>
+            </div>
+            <div class="form-group">
+                <label for="filePath">File Path:</label>
+                <input type="text" id="filePath" placeholder="/path/to/file.ts" style="width: 200px;">
+            </div>
+        </div>
+
+        <div class="container">
+            <h3>📝 Activity Log</h3>
+            <div id="log" class="log"></div>
+            <button id="clearLogBtn">Clear Log</button>
+        </div>
+    </div>
+
+    <script>
+        class ConnAIIntegrationTest {
+            constructor() {
+                this.serverUrl = '';
+                this.connected = false;
+                this.selectedServer = null;
+                this.foundServers = [];
+            }
+
+            log(message, type = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEl = document.getElementById('log');
+                const prefix = type === 'error' ? '[ERROR]' : 
+                              type === 'success' ? '[SUCCESS]' : 
+                              type === 'warning' ? '[WARN]' : '[INFO]';
+                logEl.textContent += `${timestamp} ${prefix} ${message}\n`;
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+
+            updateStatus(status, className = 'disconnected') {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = status;
+                statusEl.className = `status ${className}`;
+            }
+
+            // Port scanning functionality
+            async scanPort(host, port) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+                    const response = await fetch(`${host}:${port}/health`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                        signal: controller.signal
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    if (response.ok) {
+                        const health = await response.json();
+                        const isConnAI = health.server?.includes('ConnAI') || 
+                                        health.status === 'ok';
+                        
+                        return {
+                            port,
+                            available: true,
+                            isConnAI,
+                            health
+                        };
+                    }
+                } catch (error) {
+                    // Port not available or ConnAI not running
+                }
+                
+                return { port, available: false, isConnAI: false };
+            }
+
+            async scanRange(host, startPort, endPort) {
+                const ports = Array.from(
+                    { length: endPort - startPort + 1 }, 
+                    (_, i) => startPort + i
+                );
+
+                this.log(`Scanning ports ${startPort}-${endPort}...`);
+                
+                const results = [];
+                const batchSize = 5;
+                
+                for (let i = 0; i < ports.length; i += batchSize) {
+                    const batch = ports.slice(i, i + batchSize);
+                    const batchPromises = batch.map(port => this.scanPort(host, port));
+                    const batchResults = await Promise.all(batchPromises);
+                    results.push(...batchResults);
+                    
+                    // Show progress
+                    this.updateStatus(`Scanning... ${Math.min(i + batchSize, ports.length)}/${ports.length}`, 'scanning');
+                }
+
+                return results;
+            }
+
+            async quickScan() {
+                this.updateStatus('Quick scanning...', 'scanning');
+                this.log('Starting quick scan for ConnAI servers...');
+                
+                const host = 'http://localhost';
+                const commonPorts = [6797, 8080, 6718, 6750, 6780, 3000];
+                
+                for (const port of commonPorts) {
+                    const result = await this.scanPort(host, port);
+                    if (result.isConnAI) {
+                        this.log(`Quick scan found ConnAI server on port ${port}`, 'success');
+                        this.showFoundServers([result]);
+                        this.updateStatus('Quick scan completed', 'connected');
+                        return;
+                    }
+                }
+
+                this.log('Quick scan completed - no ConnAI servers found', 'warning');
+                this.updateStatus('No servers found', 'disconnected');
+            }
+
+            async fullScan() {
+                this.updateStatus('Full scanning...', 'scanning');
+                this.log('Starting full scan for ConnAI servers...');
+                
+                const host = 'http://localhost';
+                const ranges = [
+                    { start: 6718, end: 6817 }, // VS Code workspace manager range
+                    { start: 8080, end: 8090 }, // Protocol server range
+                ];
+
+                let allServers = [];
+                
+                for (const range of ranges) {
+                    const results = await this.scanRange(host, range.start, range.end);
+                    const connaiServers = results.filter(r => r.isConnAI);
+                    allServers.push(...connaiServers);
+                }
+
+                if (allServers.length > 0) {
+                    this.log(`Full scan found ${allServers.length} ConnAI server(s)`, 'success');
+                    this.showFoundServers(allServers);
+                    this.updateStatus(`Found ${allServers.length} server(s)`, 'connected');
+                } else {
+                    this.log('Full scan completed - no ConnAI servers found', 'warning');
+                    this.updateStatus('No servers found', 'disconnected');
+                }
+            }
+
+            showFoundServers(servers) {
+                this.foundServers = servers;
+                const serverListEl = document.getElementById('serverList');
+                const serversEl = document.getElementById('servers');
+                
+                serversEl.innerHTML = '';
+                
+                servers.forEach((server, index) => {
+                    const serverDiv = document.createElement('div');
+                    serverDiv.className = 'server-item';
+                    serverDiv.innerHTML = `
+                        <strong>Port ${server.port}</strong>
+                        <br>
+                        <small>Status: ${server.health?.status || 'unknown'}</small>
+                        ${server.health?.workspace ? `<br><small>Workspace: ${server.health.workspace.name}</small>` : ''}
+                    `;
+                    serverDiv.onclick = () => this.selectServer(index);
+                    serversEl.appendChild(serverDiv);
+                });
+                
+                serverListEl.style.display = 'block';
+            }
+
+            selectServer(index) {
+                // Update UI selection
+                document.querySelectorAll('.server-item').forEach((item, i) => {
+                    item.classList.toggle('selected', i === index);
+                });
+                
+                // Update form fields
+                this.selectedServer = this.foundServers[index];
+                document.getElementById('port').value = this.selectedServer.port;
+                
+                this.log(`Selected server on port ${this.selectedServer.port}`);
+            }
+
+            async connect() {
+                const serverUrl = document.getElementById('serverUrl').value.trim();
+                const port = parseInt(document.getElementById('port').value);
+                
+                if (!serverUrl || !port) {
+                    this.log('Please enter server URL and port', 'error');
+                    return;
+                }
+
+                this.updateStatus('Connecting...', 'scanning');
+                this.log(`Connecting to ${serverUrl}:${port}...`);
+
+                try {
+                    const response = await fetch(`${serverUrl}:${port}/health`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    if (response.ok) {
+                        const health = await response.json();
+                        this.serverUrl = `${serverUrl}:${port}`;
+                        this.connected = true;
+                        this.updateConnectionUI(true);
+                        this.updateStatus(`Connected to ${this.serverUrl}`, 'connected');
+                        this.log(`Connected successfully: ${JSON.stringify(health)}`, 'success');
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    this.log(`Connection failed: ${error.message}`, 'error');
+                    this.updateStatus('Connection failed', 'disconnected');
+                    this.updateConnectionUI(false);
+                }
+            }
+
+            disconnect() {
+                this.connected = false;
+                this.serverUrl = '';
+                this.updateConnectionUI(false);
+                this.updateStatus('Disconnected', 'disconnected');
+                this.log('Disconnected');
+            }
+
+            updateConnectionUI(connected) {
+                document.getElementById('connectBtn').disabled = connected;
+                document.getElementById('disconnectBtn').disabled = !connected;
+                document.getElementById('sendRequestBtn').disabled = !connected;
+            }
+
+            async sendRequest() {
+                if (!this.connected) {
+                    this.log('Not connected to server', 'error');
+                    return;
+                }
+
+                const operation = document.getElementById('operation').value;
+                let payload = {};
+
+                // Build payload based on operation
+                switch (operation) {
+                    case 'get_context':
+                        payload = { type: 'focused_file', workspaceId: 'default' };
+                        break;
+                    case 'authenticate':
+                        payload = { token: 'test_token_123' };
+                        break;
+                    case 'get_workspace_info':
+                        payload = { includeFiles: false };
+                        break;
+                    case 'read_file':
+                        const filePath = document.getElementById('filePath').value.trim();
+                        if (!filePath) {
+                            this.log('Please enter a file path', 'error');
+                            return;
+                        }
+                        payload = { path: filePath };
+                        break;
+                }
+
+                const message = {
+                    id: `msg_${Date.now()}`,
+                    type: 'request',
+                    timestamp: Date.now(),
+                    operation: operation,
+                    payload: payload
+                };
+
+                try {
+                    this.log(`Sending request: ${operation}`, 'info');
+                    
+                    const response = await fetch(`${this.serverUrl}/api/request`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(message)
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.log(`Response: ${JSON.stringify(result.payload, null, 2)}`, 'success');
+                    } else {
+                        this.log(`Request failed: ${result.error?.message || 'Unknown error'}`, 'error');
+                    }
+                } catch (error) {
+                    this.log(`Request failed: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // Initialize the test
+        const test = new ConnAIIntegrationTest();
+
+        // Event listeners
+        document.getElementById('quickScanBtn').addEventListener('click', () => test.quickScan());
+        document.getElementById('scanBtn').addEventListener('click', () => test.fullScan());
+        document.getElementById('connectBtn').addEventListener('click', () => test.connect());
+        document.getElementById('disconnectBtn').addEventListener('click', () => test.disconnect());
+        document.getElementById('sendRequestBtn').addEventListener('click', () => test.sendRequest());
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            document.getElementById('log').textContent = '';
+        });
+
+        // Initialize
+        test.log('ConnAI Integration Test initialized');
+        test.log('Click "Quick Scan" to find ConnAI servers or enter connection details manually');
+    </script>
+</body>
+</html>

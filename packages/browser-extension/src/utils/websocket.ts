@@ -49,7 +49,7 @@ export class WebSocketClient {
 
   private async _establishConnection(options: ConnectionOptions): Promise<void> {
     const {
-      serverUrl = 'http://localhost:3000',
+      serverUrl = 'http://localhost:6797', // 使用VS Code工作区管理器的典型端口
       auth,
       timeout = 10000,
       retryAttempts = 3

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getWebSocketManager } from './server/manager';
+import { getProtocolServer } from './server/protocol-server';
 import { registerCommands, createStatusBarItems, updateStatusBarItems } from './commands';
 import { WhopAuth } from './auth/whop';
 import { MachineCheck } from './auth/machineCheck';
@@ -43,8 +43,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		await workspaceManager.initializeWorkspace();
 		
 		// 重启服务器以使用新的端口
-		const webSocketManager = getWebSocketManager();
-		await webSocketManager.stopServer();
+		const protocolServer = getProtocolServer();
+		await protocolServer.stopServer();
 		await checkAuthAndStartServer();
 		
 		updateStatusBar();
@@ -76,9 +76,9 @@ export function deactivate() {
 	const workspaceManager = getWorkspaceManager();
 	workspaceManager.cleanup();
 	
-	// 停止WebSocket服务器
-	const webSocketManager = getWebSocketManager();
-	webSocketManager.stopServer().catch(error => {
+	// 停止协议服务器
+	const protocolServer = getProtocolServer();
+	protocolServer.stopServer().catch((error: any) => {
 		console.error('Error stopping server during deactivation:', error);
 	});
 }
@@ -94,15 +94,14 @@ async function checkAuthAndStartServer(): Promise<void> {
 		const workspaceManager = getWorkspaceManager();
 		const workspaceInfo = await workspaceManager.initializeWorkspace();
 		
-		const webSocketManager = getWebSocketManager();
-		const started = await webSocketManager.startServer(workspaceInfo.port);
+		const protocolServer = getProtocolServer();
+		const started = await protocolServer.startServer(workspaceInfo.port);
 		
 		if (started) {
-			console.log(`WebSocket server started successfully in test mode on port ${workspaceInfo.port}`);
+			console.log(`Protocol server started successfully in test mode on port ${workspaceInfo.port}`);
 			console.log(`Workspace: ${workspaceInfo.name} (${workspaceInfo.id})`);
-			vscode.window.showInformationMessage(`ConnAI server started on port ${workspaceInfo.port} (Test Mode)\nWorkspace: ${workspaceInfo.name}`);
 		} else {
-			console.error('Failed to start WebSocket server');
+			console.error('Failed to start protocol server');
 			vscode.window.showErrorMessage('Failed to start ConnAI server');
 		}
 
@@ -151,8 +150,8 @@ async function checkAuthAndStartServer(): Promise<void> {
  */
 function updateStatusBar(): void {
 	try {
-		const webSocketManager = getWebSocketManager();
-		const serverStatus = webSocketManager.getServerStatus();
+		const protocolServer = getProtocolServer();
+		const serverStatus = protocolServer.getServerStatus();
 		const authState = whopAuth.getAuthState();
 		
 		updateStatusBarItems(

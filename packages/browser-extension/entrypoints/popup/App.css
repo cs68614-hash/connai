@@ -109,6 +109,51 @@
   text-align: center;
 }
 
+.auto-detect-section {
+  margin: 12px 0;
+}
+
+.auto-detect-button {
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #f59e0b;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 8px;
+}
+
+.auto-detect-button:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.auto-detect-button:disabled {
+  background: #6b7280;
+  cursor: not-allowed;
+}
+
+.scan-result {
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.scan-result.success {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+}
+
+.scan-result.info {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+}
+
 .save-settings-button {
   width: 100%;
   padding: 8px 16px;

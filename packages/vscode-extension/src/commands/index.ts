@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { COMMAND_IDS } from '@connai/shared';
-import { getWebSocketManager } from '../server/manager';
+import { getProtocolServer } from '../server/protocol-server';
 import { getWorkspaceManager } from '../utils/workspaceManager';
 // import { WhopAuth } from '../auth/whop'; // 暂时注释，等待创建文件
 import { cache } from '../utils/cache';
@@ -10,7 +10,7 @@ import { cache } from '../utils/cache';
  */
 
 export function registerCommands(context: vscode.ExtensionContext): void {
-  const webSocketManager = getWebSocketManager();
+  const protocolServer = getProtocolServer();
   // const whopAuth = new WhopAuth(context); // 暂时注释，等待创建文件
 
   // 认证相关命令
@@ -35,9 +35,9 @@ export function registerCommands(context: vscode.ExtensionContext): void {
   // 服务器相关命令
   const startServerCommand = vscode.commands.registerCommand(COMMAND_IDS.START_SERVER, async () => {
     try {
-      const started = await webSocketManager.startServer();
+      const started = await protocolServer.startServer();
       if (started) {
-        vscode.window.showInformationMessage('WebSocket server started successfully');
+        vscode.window.showInformationMessage('ConnAI protocol server started successfully');
       }
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to start server: ${error}`);
@@ -46,8 +46,8 @@ export function registerCommands(context: vscode.ExtensionContext): void {
 
   const stopServerCommand = vscode.commands.registerCommand(COMMAND_IDS.STOP_SERVER, async () => {
     try {
-      await webSocketManager.stopServer();
-      vscode.window.showInformationMessage('WebSocket server stopped');
+      await protocolServer.stopServer();
+      vscode.window.showInformationMessage('ConnAI protocol server stopped');
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to stop server: ${error}`);
     }
@@ -55,9 +55,10 @@ export function registerCommands(context: vscode.ExtensionContext): void {
 
   const restartServerCommand = vscode.commands.registerCommand(COMMAND_IDS.RESTART_SERVER, async () => {
     try {
-      const restarted = await webSocketManager.restartServer();
+      await protocolServer.stopServer();
+      const restarted = await protocolServer.startServer();
       if (restarted) {
-        vscode.window.showInformationMessage('WebSocket server restarted successfully');
+        vscode.window.showInformationMessage('ConnAI protocol server restarted successfully');
       }
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to restart server: ${error}`);
@@ -84,7 +85,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         timestamp: Date.now(),
       };
 
-      webSocketManager.broadcast(message as any);
+      protocolServer.broadcastMessage(message as any);
       vscode.window.showInformationMessage('File sent to connected clients');
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to send file: ${error}`);
@@ -121,7 +122,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         timestamp: Date.now(),
       };
 
-      webSocketManager.broadcast(message as any);
+      protocolServer.broadcastMessage(message as any);
       vscode.window.showInformationMessage('Selection sent to connected clients');
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to send selection: ${error}`);
@@ -149,7 +150,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         timestamp: Date.now(),
       };
 
-      webSocketManager.broadcast(message as any);
+      protocolServer.broadcastMessage(message as any);
       vscode.window.showInformationMessage('Workspace info sent to connected clients');
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to send workspace: ${error}`);
@@ -169,7 +170,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
   // 状态显示命令
   const showStatusCommand = vscode.commands.registerCommand(COMMAND_IDS.SHOW_STATUS, async () => {
     try {
-      const serverStatus = webSocketManager.getServerStatus();
+      const serverStatus = protocolServer.getServerStatus();
       const workspaceManager = getWorkspaceManager();
       const workspaceInfo = workspaceManager.getCurrentWorkspace();
       // const authStatus = whopAuth.getAuthState(); // 暂时注释

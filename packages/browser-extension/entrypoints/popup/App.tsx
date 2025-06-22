@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { browser } from 'wxt/browser';
 import type { BrowserToVSCodeMessage, MessageResponse } from '../../src/types/messages';
+import { findConnAIServer } from '../../src/utils/port-scanner';
 import './App.css';
 
 function App() {
@@ -9,8 +10,10 @@ function App() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [transport, setTransport] = useState<string>('');
   const [serverUrl, setServerUrl] = useState('http://localhost');
-  const [port, setPort] = useState(3000);
+  const [port, setPort] = useState(6797); // 使用VS Code工作区管理器的典型端口
   const [showSettings, setShowSettings] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<string | null>(null);
 
   useEffect(() => {
     // Check initial connection status from storage and load settings
@@ -153,6 +156,38 @@ function App() {
     }
   };
 
+  const handleAutoDetect = async () => {
+    setIsScanning(true);
+    setScanResult(null);
+
+    try {
+      console.log('Starting auto-detection...');
+      setScanResult('Scanning for ConnAI servers...');
+      
+      const server = await findConnAIServer(serverUrl);
+      
+      if (server) {
+        setPort(server.port);
+        setScanResult(`Found ConnAI server on port ${server.port}${server.workspaceInfo ? ` (${server.workspaceInfo.name})` : ''}`);
+        
+        // 自动保存设置
+        await browser.storage.local.set({
+          serverUrl,
+          port: server.port
+        });
+        
+        console.log('Auto-detection successful:', server);
+      } else {
+        setScanResult('No ConnAI servers found. Please check that VS Code with ConnAI extension is running.');
+      }
+    } catch (error) {
+      console.error('Auto-detection failed:', error);
+      setScanResult(`Auto-detection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   return (
     <div className="popup-container">
       <div className="header">
@@ -199,6 +234,22 @@ function App() {
           <div className="settings-info">
             <small>Full URL: {serverUrl}:{port}</small>
           </div>
+          
+          <div className="auto-detect-section">
+            <button 
+              className="auto-detect-button"
+              onClick={handleAutoDetect}
+              disabled={isConnected || isScanning}
+            >
+              {isScanning ? 'Scanning...' : '🔍 Auto-detect Port'}
+            </button>
+            {scanResult && (
+              <div className={`scan-result ${scanResult.includes('Found') ? 'success' : 'info'}`}>
+                <small>{scanResult}</small>
+              </div>
+            )}
+          </div>
+          
           {!isConnected && (
             <button 
               className="save-settings-button"

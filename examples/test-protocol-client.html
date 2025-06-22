@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConnAI Protocol Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007cba;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .form-group {
+            margin: 10px 0;
+        }
+        label {
+            display: inline-block;
+            width: 120px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ConnAI Protocol Test Client</h1>
+        
+        <div id="status" class="status disconnected">
+            Disconnected
+        </div>
+
+        <div class="form-group">
+            <label for="serverUrl">Server URL:</label>
+            <input type="text" id="serverUrl" placeholder="http://localhost:8080" value="http://localhost:8080">
+            <button id="connectBtn">Connect</button>
+            <button id="disconnectBtn" disabled>Disconnect</button>
+        </div>
+
+        <div class="controls">
+            <h3>Test Operations</h3>
+            
+            <div class="form-group">
+                <label for="operation">Operation:</label>
+                <select id="operation">
+                    <option value="get_context">Get Context</option>
+                    <option value="get_workspace_info">Get Workspace Info</option>
+                    <option value="authenticate">Authenticate</option>
+                </select>
+                <button id="sendRequestBtn" disabled>Send Request</button>
+            </div>
+
+            <div class="form-group">
+                <label for="eventType">Event Type:</label>
+                <input type="text" id="eventType" placeholder="test_event">
+                <button id="sendEventBtn" disabled>Send Event</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="log">Activity Log:</label>
+            <div id="log" class="log"></div>
+            <button id="clearLogBtn">Clear Log</button>
+        </div>
+    </div>
+
+    <script>
+        class ConnAIProtocolClient {
+            constructor() {
+                this.serverUrl = '';
+                this.messageId = 0;
+                this.pendingRequests = new Map();
+                this.connected = false;
+            }
+
+            generateMessageId() {
+                return `msg_${++this.messageId}_${Date.now()}`;
+            }
+
+            log(message, type = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEl = document.getElementById('log');
+                const prefix = type === 'error' ? '[ERROR]' : type === 'sent' ? '[SENT]' : type === 'received' ? '[RECV]' : '[INFO]';
+                logEl.textContent += `${timestamp} ${prefix} ${message}\n`;
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+
+            async connect(serverUrl) {
+                try {
+                    this.serverUrl = serverUrl;
+                    this.log(`Connecting to ${serverUrl}...`);
+
+                    // 发送测试连接请求
+                    const response = await fetch(`${serverUrl}/health`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+
+                    if (response.ok) {
+                        this.connected = true;
+                        this.updateStatus(true);
+                        this.log('Connected successfully');
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    this.log(`Connection failed: ${error.message}`, 'error');
+                    this.updateStatus(false);
+                }
+            }
+
+            disconnect() {
+                this.connected = false;
+                this.pendingRequests.clear();
+                this.updateStatus(false);
+                this.log('Disconnected');
+            }
+
+            updateStatus(connected) {
+                const statusEl = document.getElementById('status');
+                const connectBtn = document.getElementById('connectBtn');
+                const disconnectBtn = document.getElementById('disconnectBtn');
+                const sendRequestBtn = document.getElementById('sendRequestBtn');
+                const sendEventBtn = document.getElementById('sendEventBtn');
+
+                if (connected) {
+                    statusEl.textContent = 'Connected';
+                    statusEl.className = 'status connected';
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    sendRequestBtn.disabled = false;
+                    sendEventBtn.disabled = false;
+                } else {
+                    statusEl.textContent = 'Disconnected';
+                    statusEl.className = 'status disconnected';
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    sendRequestBtn.disabled = true;
+                    sendEventBtn.disabled = true;
+                }
+            }
+
+            async sendRequest(operation, payload = {}) {
+                if (!this.connected) {
+                    this.log('Not connected to server', 'error');
+                    return;
+                }
+
+                const message = {
+                    id: this.generateMessageId(),
+                    type: 'request',
+                    timestamp: Date.now(),
+                    operation: operation,
+                    payload: payload
+                };
+
+                try {
+                    this.log(`Sending request: ${operation}`, 'sent');
+                    
+                    const response = await fetch(`${this.serverUrl}/api/request`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(message)
+                    });
+
+                    const result = await response.json();
+                    this.log(`Response: ${JSON.stringify(result, null, 2)}`, 'received');
+                } catch (error) {
+                    this.log(`Request failed: ${error.message}`, 'error');
+                }
+            }
+
+            async sendEvent(eventType, payload = {}) {
+                if (!this.connected) {
+                    this.log('Not connected to server', 'error');
+                    return;
+                }
+
+                const message = {
+                    id: this.generateMessageId(),
+                    type: 'event',
+                    timestamp: Date.now(),
+                    event: eventType,
+                    payload: payload
+                };
+
+                try {
+                    this.log(`Sending event: ${eventType}`, 'sent');
+                    
+                    const response = await fetch(`${this.serverUrl}/api/event`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(message)
+                    });
+
+                    if (response.ok) {
+                        this.log(`Event sent successfully`, 'received');
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    this.log(`Event failed: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // 初始化客户端
+        const client = new ConnAIProtocolClient();
+
+        // 事件监听器
+        document.getElementById('connectBtn').addEventListener('click', () => {
+            const serverUrl = document.getElementById('serverUrl').value.trim();
+            if (serverUrl) {
+                client.connect(serverUrl);
+            }
+        });
+
+        document.getElementById('disconnectBtn').addEventListener('click', () => {
+            client.disconnect();
+        });
+
+        document.getElementById('sendRequestBtn').addEventListener('click', () => {
+            const operation = document.getElementById('operation').value;
+            let payload = {};
+
+            // 根据操作类型设置 payload
+            switch (operation) {
+                case 'get_context':
+                    payload = { type: 'editor_state', workspaceId: 'default' };
+                    break;
+                case 'authenticate':
+                    payload = { token: 'test_token_123' };
+                    break;
+                case 'get_workspace_info':
+                    payload = { includeFiles: false };
+                    break;
+            }
+
+            client.sendRequest(operation, payload);
+        });
+
+        document.getElementById('sendEventBtn').addEventListener('click', () => {
+            const eventType = document.getElementById('eventType').value.trim();
+            if (eventType) {
+                client.sendEvent(eventType, { test: true, timestamp: Date.now() });
+            }
+        });
+
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            document.getElementById('log').textContent = '';
+        });
+
+        // 页面加载时的初始化
+        client.log('ConnAI Protocol Test Client initialized');
+        client.log('Enter server URL and click Connect to start testing');
+    </script>
+</body>
+</html>

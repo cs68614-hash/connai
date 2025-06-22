@@ -153,6 +153,7 @@
   },
   "dependencies": {
     "@connai/shared": "workspace:*",
+    "@connai/protocol": "workspace:*",
     "@types/ws": "^8.5.12",
     "axios": "^1.7.9",
     "engine.io": "^6.6.4",
