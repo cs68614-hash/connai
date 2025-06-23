@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConnAI Copilot Chat API 测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #007acc;
+            color: white;
+        }
+        .btn-secondary {
+            background: #666;
+            color: white;
+        }
+        #result {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 ConnAI Copilot Chat API 测试</h1>
+        
+        <div class="test-section">
+            <h3>1. 服务器连接测试</h3>
+            <button class="btn-secondary" onclick="testConnection()">测试连接</button>
+            <div id="connectionStatus"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Copilot Chat 测试</h3>
+            <input type="text" id="chatInput" placeholder="输入您想要问 Copilot 的问题..." 
+                   value="请帮我写一个 JavaScript 函数来计算数组的平均值">
+            <br>
+            <button class="btn-primary" onclick="startChat()">开始聊天</button>
+            <button class="btn-secondary" onclick="clearResult()">清除结果</button>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 流式响应</h3>
+            <div id="streamStatus"></div>
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:6797';
+        let currentSessionId = null;
+        let eventSource = null;
+
+        async function testConnection() {
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.innerHTML = '<div class="info">正在测试连接...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = `<div class="success">✅ 连接成功！<br>服务器: ${data.server}<br>版本: ${data.version}</div>`;
+                } else {
+                    statusDiv.innerHTML = `<div class="error">❌ 服务器错误: ${response.status}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="error">❌ 连接失败: ${error.message}</div>`;
+            }
+        }
+
+        async function startChat() {
+            const input = document.getElementById('chatInput');
+            const resultDiv = document.getElementById('result');
+            const streamStatusDiv = document.getElementById('streamStatus');
+            
+            if (!input.value.trim()) {
+                alert('请输入问题');
+                return;
+            }
+
+            const chatRequest = {
+                prompt: input.value.trim(),
+                streaming: {
+                    enabled: true
+                },
+                context: {
+                    userType: 'developer',
+                    stage: 'development',
+                    pageUrl: window.location.href
+                }
+            };
+
+            streamStatusDiv.innerHTML = '<div class="info">正在启动聊天会话...</div>';
+            resultDiv.textContent = '';
+
+            try {
+                // 1. 启动聊天会话
+                const response = await fetch(`${API_BASE}/api/copilot/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(chatRequest)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+
+                const chatResult = await response.json();
+                currentSessionId = chatResult.sessionId;
+                
+                streamStatusDiv.innerHTML = `<div class="success">✅ 会话已启动 (ID: ${currentSessionId})</div>`;
+
+                // 2. 连接到流式端点
+                connectToStream(currentSessionId);
+
+            } catch (error) {
+                streamStatusDiv.innerHTML = `<div class="error">❌ 启动失败: ${error.message}</div>`;
+                resultDiv.textContent = `错误详情: ${error.message}`;
+            }
+        }
+
+        function connectToStream(sessionId) {
+            const resultDiv = document.getElementById('result');
+            const streamStatusDiv = document.getElementById('streamStatus');
+
+            // 关闭现有连接
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            const streamUrl = `${API_BASE}/api/copilot/stream?sessionId=${sessionId}`;
+            eventSource = new EventSource(streamUrl);
+
+            eventSource.onopen = function() {
+                streamStatusDiv.innerHTML += '<div class="info">📡 已连接到流式端点</div>';
+            };
+
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    switch (data.type) {
+                        case 'connected':
+                            resultDiv.textContent += `[${new Date().toLocaleTimeString()}] 连接已建立\\n\\n`;
+                            break;
+                        case 'start':
+                            resultDiv.textContent += `[${new Date().toLocaleTimeString()}] 开始生成响应...\\n\\n`;
+                            break;
+                        case 'chunk':
+                            if (data.data.content) {
+                                resultDiv.textContent += data.data.content;
+                                resultDiv.scrollTop = resultDiv.scrollHeight;
+                            }
+                            break;
+                        case 'complete':
+                            resultDiv.textContent += `\\n\\n[${new Date().toLocaleTimeString()}] 响应完成`;
+                            if (data.data.metadata) {
+                                resultDiv.textContent += `\\n元数据: ${JSON.stringify(data.data.metadata, null, 2)}`;
+                            }
+                            streamStatusDiv.innerHTML += '<div class="success">✅ 响应完成</div>';
+                            eventSource.close();
+                            break;
+                        case 'error':
+                            resultDiv.textContent += `\\n\\n[${new Date().toLocaleTimeString()}] 错误: ${data.data.error?.message || '未知错误'}`;
+                            streamStatusDiv.innerHTML += `<div class="error">❌ 流式错误: ${data.data.error?.message}</div>`;
+                            eventSource.close();
+                            break;
+                    }
+                } catch (e) {
+                    console.error('解析事件数据失败:', e);
+                    resultDiv.textContent += `\\n解析错误: ${e.message}\\n`;
+                }
+            };
+
+            eventSource.onerror = function(event) {
+                streamStatusDiv.innerHTML += '<div class="error">❌ 流式连接错误</div>';
+                console.error('EventSource error:', event);
+            };
+        }
+
+        function clearResult() {
+            document.getElementById('result').textContent = '';
+            document.getElementById('streamStatus').innerHTML = '';
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        }
+
+        // 页面加载时自动测试连接
+        window.onload = function() {
+            testConnection();
+        };
+    </script>
+</body>
+</html>

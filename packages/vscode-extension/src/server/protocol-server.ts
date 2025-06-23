@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as http from 'http';
 import { getWorkspaceManager } from '../utils/workspaceManager';
+import { getCopilotChatManager } from '../extension';
 
 /**
  * 基于协议层的 ConnAI 服务器
@@ -195,6 +196,14 @@ export class ProtocolServer {
                     await this.handleApiEvent(req, res);
                     break;
                 
+                case '/api/copilot/chat':
+                    await this.handleCopilotChat(req, res);
+                    break;
+                
+                case '/api/copilot/stream':
+                    await this.handleCopilotStream(req, res);
+                    break;
+                
                 default:
                     res.writeHead(404, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Not found' }));
@@ -287,6 +296,150 @@ export class ProtocolServer {
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown error'
             }));
+        }
+    }
+
+    /**
+     * 处理 Copilot 聊天请求
+     */
+    private async handleCopilotChat(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+        if (req.method !== 'POST') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
+            return;
+        }
+
+        try {
+            const body = await this.readRequestBody(req);
+            const chatRequest = JSON.parse(body);
+
+            // 获取 Copilot 聊天管理器 - 直接使用导入的函数
+            const copilotManager = getCopilotChatManager();
+            
+            if (!copilotManager) {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Copilot chat manager not available' }));
+                return;
+            }
+
+            // 启动聊天会话
+            const sessionId = await copilotManager.startChatSession(chatRequest);
+
+            // 如果启用了流式传输，返回会话 ID 和流式端点
+            if (chatRequest.streaming?.enabled) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    sessionId,
+                    streamUrl: `/api/copilot/stream?sessionId=${sessionId}`,
+                    success: true
+                }));
+            } else {
+                // 非流式模式：等待完整响应
+                // 这里需要实现等待机制
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    sessionId,
+                    message: 'Chat session started. Use stream endpoint for real-time updates.',
+                    success: true
+                }));
+            }
+
+        } catch (error: any) {
+            console.error('Copilot chat error:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+                error: 'Internal server error',
+                details: error?.message 
+            }));
+        }
+    }
+
+    /**
+     * 处理 Copilot 流式响应
+     */
+    private async handleCopilotStream(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+        if (req.method !== 'GET') {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Method not allowed' }));
+            return;
+        }
+
+        const url = new URL(req.url || '', `http://${req.headers.host}`);
+        const sessionId = url.searchParams.get('sessionId');
+
+        if (!sessionId) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Session ID required' }));
+            return;
+        }
+
+        try {
+            // 设置 Server-Sent Events 头
+            res.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Cache-Control'
+            });
+
+            // 发送初始连接事件
+            res.write(`data: ${JSON.stringify({
+                type: 'connected',
+                sessionId,
+                timestamp: Date.now()
+            })}\n\n`);
+
+            // 获取 Copilot 聊天管理器
+            const copilotManager = getCopilotChatManager();
+            if (!copilotManager) {
+                res.write(`data: ${JSON.stringify({
+                    type: 'error',
+                    error: 'Copilot chat manager not available',
+                    timestamp: Date.now()
+                })}\n\n`);
+                res.end();
+                return;
+            }
+
+            // 监听流式事件
+            const eventHandler = (event: any) => {
+                if (event.sessionId === sessionId) {
+                    res.write(`data: ${JSON.stringify(event)}\n\n`);
+                    
+                    // 如果是完成或错误事件，关闭连接
+                    if (event.type === 'complete' || event.type === 'error') {
+                        setTimeout(() => {
+                            res.end();
+                        }, 100);
+                    }
+                }
+            };
+
+            copilotManager.on('streamEvent', eventHandler);
+
+            // 处理客户端断开连接
+            req.on('close', () => {
+                copilotManager.off('streamEvent', eventHandler);
+            });
+
+            // 保持连接活跃
+            const keepAlive = setInterval(() => {
+                res.write(`: keep-alive\n\n`);
+            }, 30000);
+
+            req.on('close', () => {
+                clearInterval(keepAlive);
+            });
+
+        } catch (error: any) {
+            console.error('Copilot stream error:', error);
+            res.write(`data: ${JSON.stringify({
+                type: 'error',
+                error: error?.message || 'Unknown error',
+                timestamp: Date.now()
+            })}\n\n`);
+            res.end();
         }
     }
 

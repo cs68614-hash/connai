@@ -57,6 +57,12 @@ const menuActions: MenuAction[] = [
     label: '📚 Full Codebase',
     description: '获取完整代码库',
     contextType: 'full-codebase'
+  },
+  {
+    id: 'open-copilot-sidebar',
+    label: '💬 Open Copilot Chat',
+    description: '打开 Copilot 聊天侧边栏',
+    contextType: 'copilot-sidebar'
   }
 ];
 
@@ -213,6 +219,31 @@ export default {
 
       const action = menuActions.find(a => a.id === actionId);
       if (!action) return;
+
+      // 特殊处理：打开 Copilot 侧边栏
+      if (actionId === 'open-copilot-sidebar') {
+        try {
+          // 发送消息到背景脚本请求打开侧边栏
+          const response = await sendMessageToBackground({
+            id: generateMessageId(),
+            type: 'OpenSidePanel',
+            timestamp: Date.now(),
+            payload: {}
+          });
+          
+          if (response.success) {
+            insertTextAtCursor('💬 Copilot Chat 已打开');
+          } else {
+            insertErrorMessage(`❌ 无法打开 Copilot Chat: ${response.error || 'Unknown error'}`);
+          }
+          hideMenu();
+          return;
+        } catch (error) {
+          console.error('ConnAI: Failed to open sidepanel:', error);
+          insertErrorMessage(`❌ 无法打开 Copilot Chat: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          return;
+        }
+      }
 
       // 检查是否连接到VS Code，并尝试自动连接
       if (!isConnectedToVSCode) {

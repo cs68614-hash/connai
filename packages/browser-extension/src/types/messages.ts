@@ -50,6 +50,11 @@ export interface DisconnectMessage extends BaseMessage {
   payload: {};
 }
 
+export interface OpenSidePanelMessage extends BaseMessage {
+  type: 'OpenSidePanel';
+  payload: {};
+}
+
 // VS Code -> Browser messages
 export interface UpdatedFileMessage extends BaseMessage {
   type: 'UpdatedFile';
@@ -98,7 +103,8 @@ export type BrowserToVSCodeMessage =
   | GrepMessage 
   | GetContextMessage 
   | ConnectMessage 
-  | DisconnectMessage;
+  | DisconnectMessage
+  | OpenSidePanelMessage;
 
 export type VSCodeToBrowserMessage = 
   | UpdatedFileMessage 

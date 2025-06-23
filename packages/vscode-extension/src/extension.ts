@@ -4,10 +4,12 @@ import { registerCommands, createStatusBarItems, updateStatusBarItems } from './
 import { WhopAuth } from './auth/whop';
 import { MachineCheck } from './auth/machineCheck';
 import { getWorkspaceManager } from './utils/workspaceManager';
+import { CopilotChatManager } from './copilot/chatManager';
 
 let statusBarItems: vscode.StatusBarItem[] = [];
 let whopAuth: WhopAuth;
 let machineCheck: MachineCheck;
+let copilotChatManager: CopilotChatManager;
 
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('ConnAI extension is now active!');
@@ -19,6 +21,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	// 初始化认证和机器检查
 	whopAuth = new WhopAuth(context);
 	machineCheck = new MachineCheck(context);
+
+	// 初始化 Copilot 聊天管理器
+	copilotChatManager = new CopilotChatManager();
+	context.subscriptions.push(copilotChatManager);
 
 	// 注册命令
 	registerCommands(context);
@@ -143,6 +149,13 @@ async function checkAuthAndStartServer(): Promise<void> {
 		console.error('Failed to check auth and start server:', error);
 		vscode.window.showErrorMessage(`ConnAI initialization failed: ${error}`);
 	}
+
+	// 返回扩展的公共 API（可选）
+	return {
+		copilotChatManager,
+		getProtocolServer: () => getProtocolServer(),
+		getWorkspaceManager: () => getWorkspaceManager()
+	} as any;
 }
 
 /**
@@ -163,4 +176,11 @@ function updateStatusBar(): void {
 	} catch (error) {
 		console.error('Failed to update status bar:', error);
 	}
+}
+
+/**
+ * 获取 Copilot 聊天管理器实例
+ */
+export function getCopilotChatManager(): CopilotChatManager | undefined {
+	return copilotChatManager;
 }

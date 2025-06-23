@@ -15,3 +15,6 @@ export * from './workspace.js';
 
 // Authentication contracts
 export * from './auth.js';
+
+// Copilot contracts
+export * from './copilot.js';

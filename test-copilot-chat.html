@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConnAI Copilot Chat 测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        .instruction {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .warning {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #ff9800;
+        }
+        .success {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #4caf50;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+        ol {
+            line-height: 1.6;
+        }
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.loading {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .status.connected {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 ConnAI Copilot Chat 功能测试</h1>
+        
+        <div class="warning">
+            <strong>⚠️ 重要提示：</strong>
+            <p>测试此功能前，请确保：</p>
+            <ul>
+                <li>VS Code 已安装并运行 ConnAI 扩展</li>
+                <li>VS Code 已安装 GitHub Copilot Chat 扩展</li>
+                <li>浏览器已安装 ConnAI 浏览器扩展</li>
+                <li>VS Code 协议服务器正在运行（通常在端口 6797）</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 测试步骤</h3>
+            <ol>
+                <li><strong>准备环境：</strong>
+                    <ul>
+                        <li>在 VS Code 中打开一个项目</li>
+                        <li>确保 ConnAI 扩展已激活</li>
+                        <li>确保 Copilot Chat 扩展已登录</li>
+                    </ul>
+                </li>
+                <li><strong>安装浏览器扩展：</strong>
+                    <ul>
+                        <li>在 Chrome 中加载 <code>packages/browser-extension/.output/chrome-mv3</code> 文件夹</li>
+                        <li>确保扩展已启用并且有侧边栏权限</li>
+                    </ul>
+                </li>
+                <li><strong>测试聊天功能：</strong>
+                    <ul>
+                        <li>在下方文本框中输入一些文字</li>
+                        <li>右键点击文本框，选择 "💬 Open Copilot Chat"</li>
+                        <li>观察浏览器侧边栏是否打开</li>
+                        <li>在侧边栏中输入问题并测试与 Copilot 的对话</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3>💬 测试区域</h3>
+            <p>在下方文本框中输入任何内容，然后右键点击选择菜单：</p>
+            <textarea placeholder="在这里输入一些文字，然后右键点击测试菜单功能...
+
+例如：
+Hello, ConnAI! 请帮我写一个 JavaScript 函数来计算数组的平均值。
+
+或者：
+如何在 React 中实现一个计数器组件？
+
+输入完成后，右键点击文本框，选择 '💬 Open Copilot Chat' 菜单项。"></textarea>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 测试检查点</h3>
+            <div class="instruction">
+                <strong>成功标准：</strong>
+                <ul>
+                    <li>✅ 右键菜单显示 "💬 Open Copilot Chat" 选项</li>
+                    <li>✅ 点击菜单项后，浏览器侧边栏自动打开</li>
+                    <li>✅ 侧边栏显示 Copilot Chat 界面</li>
+                    <li>✅ 可以在侧边栏中输入问题</li>
+                    <li>✅ Copilot 能够响应并返回流式答案</li>
+                    <li>✅ 聊天记录正确显示</li>
+                    <li>✅ 连接状态正常显示</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 故障排除</h3>
+            <div class="warning">
+                <strong>如果遇到问题：</strong>
+                <ul>
+                    <li><strong>菜单不显示：</strong> 检查浏览器扩展是否正确加载</li>
+                    <li><strong>侧边栏不打开：</strong> 检查浏览器是否支持 sidePanel API</li>
+                    <li><strong>连接失败：</strong> 检查 VS Code 扩展和协议服务器状态</li>
+                    <li><strong>Copilot 不响应：</strong> 检查 Copilot Chat 扩展登录状态</li>
+                    <li><strong>流式响应问题：</strong> 检查浏览器控制台和 VS Code 输出面板</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 开发调试信息</h3>
+            <div class="instruction">
+                <strong>调试工具：</strong>
+                <ul>
+                    <li><strong>浏览器：</strong> F12 开发者工具 → Console</li>
+                    <li><strong>VS Code：</strong> 查看 → 输出 → ConnAI</li>
+                    <li><strong>扩展：</strong> 扩展页面 → ConnAI → 检查视图</li>
+                    <li><strong>协议服务器：</strong> 检查端口 6797 是否可访问</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="success">
+            <strong>🎉 预期结果：</strong>
+            <p>完成测试后，您应该能够通过浏览器侧边栏与 VS Code 中的 GitHub Copilot 进行实时流式聊天，实现真正的跨平台 AI 助手体验！</p>
+        </div>
+    </div>
+</body>
+</html>

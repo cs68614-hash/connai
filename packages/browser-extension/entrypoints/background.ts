@@ -32,6 +32,9 @@ export default defineBackground(() => {
         case 'Disconnect':
           return await handleDisconnectMessage();
         
+        case 'OpenSidePanel':
+          return await handleOpenSidePanelMessage(sender);
+        
         case 'GetFile':
         case 'Grep':
         case 'GetContext':
@@ -222,6 +225,42 @@ export default defineBackground(() => {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Disconnection failed',
+        timestamp: Date.now()
+      };
+    }
+  };
+
+  /**
+   * Handle opening the side panel
+   */
+  const handleOpenSidePanelMessage = async (sender: Browser.runtime.MessageSender): Promise<MessageResponse> => {
+    try {
+      // Get the window ID from the sender
+      const windowId = sender.tab?.windowId;
+      
+      if (windowId) {
+        // Open the side panel for the specific window
+        await browser.sidePanel.open({ windowId });
+      } else {
+        // Try to get the current window if we can't get it from sender
+        const windows = await browser.windows.getAll({ populate: false });
+        if (windows.length > 0 && windows[0].id) {
+          await browser.sidePanel.open({ windowId: windows[0].id });
+        } else {
+          throw new Error('Unable to determine window ID');
+        }
+      }
+
+      return {
+        success: true,
+        data: { opened: true },
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      console.error('Failed to open side panel:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to open side panel',
         timestamp: Date.now()
       };
     }
